@@ -1,0 +1,16 @@
+[package]
+name = "rag-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+agent-common.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+regex = "1"
+
+[lints]
+workspace = true

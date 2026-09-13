@@ -1,0 +1,82 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/common",
+    "crates/agent-runtime",
+    "crates/orchestrator",
+    "crates/skill-sdk",
+    "crates/tool-runtime",
+    "crates/workflow-engine",
+    "crates/llm-gateway",
+    "crates/provider-openai",
+    "crates/provider-anthropic",
+    "crates/provider-gemini",
+    "crates/provider-openai-compatible",
+    "crates/provider-ollama",
+    "crates/egress-guard",
+    "crates/rag-core",
+    "crates/cache-core",
+    "crates/secure-store",
+    "crates/audit-core",
+    "crates/document-parser",
+    "crates/spreadsheet-engine",
+    "crates/decision-core",
+    "crates/agents",
+    "crates/hardening",
+    "apps/desktop/src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "uuid", "chrono"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+moka = { version = "0.12", features = ["future"] }
+sha2 = "0.10"
+csv = "1"
+
+# Internal crates
+agent-common = { path = "crates/common" }
+agent-runtime = { path = "crates/agent-runtime" }
+skill-sdk = { path = "crates/skill-sdk" }
+tool-runtime = { path = "crates/tool-runtime" }
+llm-gateway = { path = "crates/llm-gateway" }
+provider-openai = { path = "crates/provider-openai" }
+provider-anthropic = { path = "crates/provider-anthropic" }
+provider-gemini = { path = "crates/provider-gemini" }
+provider-openai-compatible = { path = "crates/provider-openai-compatible" }
+provider-ollama = { path = "crates/provider-ollama" }
+egress-guard = { path = "crates/egress-guard" }
+rag-core = { path = "crates/rag-core" }
+cache-core = { path = "crates/cache-core" }
+secure-store = { path = "crates/secure-store" }
+audit-core = { path = "crates/audit-core" }
+document-parser = { path = "crates/document-parser" }
+spreadsheet-engine = { path = "crates/spreadsheet-engine" }
+orchestrator = { path = "crates/orchestrator" }
+workflow-engine = { path = "crates/workflow-engine" }
+decision-core = { path = "crates/decision-core" }
+agents = { path = "crates/agents" }
+hardening = { path = "crates/hardening" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
+nursery = "warn"

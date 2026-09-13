@@ -1,0 +1,15 @@
+[package]
+name = "spreadsheet-engine"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+agent-common.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+csv.workspace = true
+calamine = "0.26"
+
+[lints]
+workspace = true

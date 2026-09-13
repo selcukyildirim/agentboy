@@ -1,0 +1,41 @@
+# Build artifacts
+target/
+*.o
+*.a
+*.so
+*.dylib
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rust
+Cargo.lock
+
+# Node.js (desktop app)
+apps/desktop/node_modules/
+apps/desktop/dist/
+apps/desktop/src-tauri/target/
+
+# Proprietary crates (not part of open-source release)
+crates/paid-agents/
+crates/erp-core/
+crates/connector-sdk/
+crates/entitlement-core/
+crates/knowledge-fabric/
+crates/rbac-core/
+crates/policy-core/
+crates/usage-metering/
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log

@@ -1,0 +1,14 @@
+[package]
+name = "provider-openai-compatible"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+agent-common.workspace = true
+llm-gateway.workspace = true
+async-trait.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+
+[lints]
+workspace = true

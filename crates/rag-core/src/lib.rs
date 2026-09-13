@@ -1,0 +1,25 @@
+pub mod chunker;
+pub mod citation;
+pub mod context_budget;
+pub mod document;
+pub mod embedding;
+pub mod injection;
+pub mod bm25;
+pub mod merger;
+pub mod metadata;
+pub mod pipeline;
+pub mod retrieval;
+pub mod vector_index;
+
+pub use chunker::{Chunk, ChunkMetadata, StructureAwareChunker};
+pub use citation::{Citation, CitationManager};
+pub use context_budget::ContextBudget;
+pub use document::{Document, ContentType, DocumentMetadata, Section, detect_content_type};
+pub use embedding::{EmbeddingProvider, LocalEmbeddingProvider, cosine_similarity};
+pub use injection::InjectionDefense;
+pub use bm25::BM25Retriever;
+pub use merger::{RetrievalMerger, Reranker};
+pub use metadata::MetadataFilter;
+pub use pipeline::{IngestResult, QueryResult, RagPipeline};
+pub use retrieval::HybridRetriever;
+pub use vector_index::VectorIndex;

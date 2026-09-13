@@ -1,0 +1,15 @@
+[package]
+name = "agent-runtime"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+agent-common.workspace = true
+tokio.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

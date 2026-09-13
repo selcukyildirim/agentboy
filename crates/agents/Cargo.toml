@@ -1,0 +1,24 @@
+[package]
+name = "agents"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+agent-common.workspace = true
+agent-runtime.workspace = true
+tool-runtime.workspace = true
+rag-core.workspace = true
+decision-core.workspace = true
+spreadsheet-engine.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+tracing.workspace = true
+csv.workspace = true
+regex-lite = "0.1"
+
+[dev-dependencies]
+tokio.workspace = true
+
+[lints]
+workspace = true

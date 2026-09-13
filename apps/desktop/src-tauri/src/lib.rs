@@ -1,0 +1,36 @@
+mod commands;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tracing_subscriber::fmt()
+        .with_env_filter("info")
+        .init();
+
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .invoke_handler(tauri::generate_handler![
+            commands::greet,
+            commands::get_app_version,
+            commands::list_providers,
+            commands::configure_provider,
+            commands::test_provider,
+            commands::list_agents,
+            commands::get_agent_manifest,
+            commands::execute_agent,
+            commands::list_workflows,
+            commands::create_workflow,
+            commands::execute_workflow,
+            commands::list_documents,
+            commands::upload_document,
+            commands::query_rag,
+            commands::get_cache_stats,
+            commands::clear_cache,
+            commands::get_health,
+            commands::get_metrics,
+            commands::get_decision_context,
+            commands::list_executions,
+            commands::get_execution,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}

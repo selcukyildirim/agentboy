@@ -1,0 +1,17 @@
+[package]
+name = "cache-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+agent-common.workspace = true
+moka.workspace = true
+tokio.workspace = true
+serde.workspace = true
+sha2 = "0.10"
+chrono.workspace = true
+sqlx.workspace = true
+anyhow.workspace = true
+
+[lints]
+workspace = true

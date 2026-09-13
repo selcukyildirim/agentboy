@@ -1,0 +1,19 @@
+[package]
+name = "document-parser"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+agent-common.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+spreadsheet-engine.workspace = true
+csv.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
