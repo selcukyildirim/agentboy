@@ -164,10 +164,13 @@ PHASE-16
 - ADR-010: calamine/csv/pdf-extract/docx-rs for parsing
 
 ## Test Status
-- cargo check: PASS
-- cargo fmt: PASS
-- cargo test: PASS (493 tests, 0 failures)
-- unit + integration + golden fixtures
+- cargo test --workspace: PASS (539 tests, 50 targets, 0 failures)
+- cargo fmt --check: PASS
+- cargo clippy --workspace: no errors (warnings only)
+- frontend (vitest): PASS (13 tests)
+- desktop binary: builds (cargo build -p agentboy-desktop)
+- integration: orchestrator execute() with real agent + audit; workflow run_with
+  drives a real agent; golden fixtures
 
 ## Crate Summary
 | Crate | Purpose | Status |
