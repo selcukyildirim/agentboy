@@ -1,5 +1,7 @@
 mod app_state;
 mod commands;
+mod cost;
+mod llm_factory;
 mod provider_bridge;
 
 pub use app_state::AppState;
@@ -21,6 +23,11 @@ pub fn run() {
             commands::list_providers,
             commands::configure_provider,
             commands::test_provider,
+            commands::get_provider_status,
+            commands::remove_provider_credential,
+            commands::list_provider_models,
+            commands::set_active_provider,
+            commands::get_active_provider,
             commands::list_agents,
             commands::get_agent_manifest,
             commands::execute_agent,
@@ -36,9 +43,14 @@ pub fn run() {
             commands::clear_cache,
             commands::get_health,
             commands::get_metrics,
+            commands::list_decision_types,
             commands::get_decision_context,
+            commands::get_recommendation,
             commands::list_executions,
             commands::get_execution,
+            commands::get_execution_steps,
+            commands::delete_execution,
+            commands::get_execution_stats,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

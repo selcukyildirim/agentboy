@@ -7,8 +7,11 @@ pub mod management;
 pub mod operations;
 pub mod pmo;
 pub mod procurement;
+pub mod registry;
 pub mod sales;
 pub mod legal;
+
+pub use registry::{all_agents, all_manifests, register_all};
 
 pub use accounting::{
     AccountReconciliationAgent, InvoiceControlAgent, InvoiceReaderAgent, JournalEntryAgent,

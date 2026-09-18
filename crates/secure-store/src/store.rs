@@ -92,6 +92,7 @@ mod tests {
         let cred = StoredCredential {
             provider: "test_provider".to_string(),
             secret_ref: "test_secret_ref".to_string(),
+            secret: Some("sk-test-secret".to_string()),
             created_at: chrono::Utc::now(),
             last_validated_at: None,
             status: CredentialStatus::Active,

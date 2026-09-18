@@ -1,7 +1,7 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits};
+use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
 
 pub struct ProcurementDecisionAgent;
 
@@ -34,6 +34,10 @@ impl Agent for ProcurementDecisionAgent {
             rag_enabled: false,
             output_schema: None,
             max_cost_usd: None,
+            input_schema: vec![
+                InputField::new("vendor_quotes", "Vendor Quotes (JSON)", InputKind::Json, true).with_example("[{\"vendor\":\"Acme\",\"price\":1000,\"lead_time_days\":7,\"quality_score\":95}]"),
+                InputField::new("budget_limit", "Budget Limit", InputKind::Number, true).with_example("50000"),
+            ],
         }
     }
 

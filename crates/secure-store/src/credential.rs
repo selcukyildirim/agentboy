@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 pub struct StoredCredential {
     pub provider: String,
     pub secret_ref: String,
+    /// The actual secret (API key/token). Stored only in the OS keychain,
+    /// never in the application database.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secret: Option<String>,
     pub created_at: DateTime<Utc>,
     pub last_validated_at: Option<DateTime<Utc>>,
     pub status: CredentialStatus,

@@ -1,7 +1,7 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits};
+use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
 
 pub struct InvoiceControlAgent;
 
@@ -34,6 +34,11 @@ impl Agent for InvoiceControlAgent {
             rag_enabled: false,
             output_schema: None,
             max_cost_usd: None,
+            input_schema: vec![
+                InputField::new("invoice", "Invoice (JSON)", InputKind::Json, true),
+                InputField::new("purchase_order", "Purchase Order (JSON)", InputKind::Json, false),
+                InputField::new("receipt", "Receipt (JSON)", InputKind::Json, false),
+            ],
         }
     }
 

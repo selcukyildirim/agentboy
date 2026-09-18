@@ -221,6 +221,7 @@ mod tests {
                 rag_enabled: false,
                 output_schema: None,
                 max_cost_usd: None,
+                input_schema: vec![],
             }
         }
 
@@ -257,6 +258,7 @@ mod tests {
                 rag_enabled: false,
                 output_schema: None,
                 max_cost_usd: None,
+                input_schema: vec![],
             }
         }
 

@@ -10,7 +10,7 @@ pub use context::{
     AgentConfig, AgentContext, DefaultAgentContext, LlmCompletionRequest, LlmCompletionResponse,
     LlmMessage, LlmProvider, LlmUsage, MockAgentContext, MockLlmProvider,
 };
-pub use manifest::AgentManifest;
+pub use manifest::{AgentManifest, InputField, InputKind};
 pub use registry::AgentRegistry;
 pub use skills::{SkillCatalog, KNOWN_SKILLS};
 pub use state::{ExecutionState, ExecutionStep, OutputValidator, StepGuard};

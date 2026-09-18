@@ -1,7 +1,7 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits};
+use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
 
 use crate::csv_util;
 
@@ -27,6 +27,9 @@ impl Agent for PricingOptimizationAgent {
             rag_enabled: false,
             output_schema: None,
             max_cost_usd: None,
+            input_schema: vec![
+                InputField::new("products", "Products", InputKind::File, true).with_example("product,cost,price,list_price\nWidget,70,100,120"),
+            ],
         }
     }
 

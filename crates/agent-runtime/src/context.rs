@@ -28,11 +28,19 @@ pub struct LlmCompletionResponse {
     pub usage: Option<LlmUsage>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LlmUsage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub total_tokens: u32,
+}
+
+impl std::ops::AddAssign for LlmUsage {
+    fn add_assign(&mut self, rhs: Self) {
+        self.prompt_tokens += rhs.prompt_tokens;
+        self.completion_tokens += rhs.completion_tokens;
+        self.total_tokens += rhs.total_tokens;
+    }
 }
 
 #[async_trait]
@@ -100,6 +108,14 @@ pub trait AgentContext: Send + Sync {
     fn config(&self) -> &AgentConfig;
     fn last_egress_manifest(&self) -> Option<EgressManifest>;
 
+    /// Cumulative token usage across all LLM calls made through this context.
+    fn total_usage(&self) -> LlmUsage {
+        LlmUsage::default()
+    }
+
+    /// Record usage from a completed LLM call. Default is a no-op.
+    fn record_usage(&self, _usage: LlmUsage) {}
+
     async fn call_llm(&self, system_prompt: &str, user_prompt: &str) -> AppResult<String> {
         if self.config().offline {
             tracing::debug!("Offline mode: skipping LLM call, returning deterministic placeholder");
@@ -128,6 +144,9 @@ pub trait AgentContext: Send + Sync {
         };
 
         let response = self.llm().complete(request).await?;
+        if let Some(usage) = response.usage {
+            self.record_usage(usage);
+        }
         Ok(response.content)
     }
 
@@ -151,6 +170,7 @@ pub struct DefaultAgentContext {
     config: AgentConfig,
     egress_guard: Mutex<EgressGuard>,
     last_egress_manifest: Mutex<Option<EgressManifest>>,
+    total_usage: Mutex<LlmUsage>,
 }
 
 impl DefaultAgentContext {
@@ -160,6 +180,7 @@ impl DefaultAgentContext {
             config,
             egress_guard: Mutex::new(EgressGuard::default()),
             last_egress_manifest: Mutex::new(None),
+            total_usage: Mutex::new(LlmUsage::default()),
         }
     }
 
@@ -173,6 +194,7 @@ impl DefaultAgentContext {
             config: AgentConfig::default(),
             egress_guard: Mutex::new(EgressGuard::new(classification)),
             last_egress_manifest: Mutex::new(None),
+            total_usage: Mutex::new(LlmUsage::default()),
         }
     }
 }
@@ -188,6 +210,14 @@ impl AgentContext for DefaultAgentContext {
 
     fn last_egress_manifest(&self) -> Option<EgressManifest> {
         self.last_egress_manifest.lock().unwrap().clone()
+    }
+
+    fn total_usage(&self) -> LlmUsage {
+        self.total_usage.lock().unwrap().clone()
+    }
+
+    fn record_usage(&self, usage: LlmUsage) {
+        *self.total_usage.lock().unwrap() += usage;
     }
 
     fn sanitize_for_egress(&self, system_prompt: &str, user_prompt: &str) -> AppResult<(String, String)> {
@@ -392,6 +422,26 @@ mod tests {
         assert!(config.model_override().is_none());
         assert!((config.effective_temperature() - 0.3).abs() < 0.001);
         assert_eq!(config.effective_max_tokens(), 2048);
+    }
+
+    #[tokio::test]
+    async fn test_total_usage_accumulates() {
+        let llm = MockLlmProvider::with_response("ok");
+        let ctx = DefaultAgentContext::with_egress_classification(
+            Box::new(llm),
+            DataClassification::L3MinimumRequired,
+        );
+
+        let before = ctx.total_usage();
+        assert_eq!(before.total_tokens, 0);
+
+        let _ = ctx.call_llm("s", "u").await.unwrap();
+        let _ = ctx.call_llm("s", "u").await.unwrap();
+
+        let usage = ctx.total_usage();
+        assert_eq!(usage.prompt_tokens, 200);
+        assert_eq!(usage.completion_tokens, 100);
+        assert_eq!(usage.total_tokens, 300);
     }
 
     #[tokio::test]

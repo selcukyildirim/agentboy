@@ -1,7 +1,7 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits};
+use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
 
 pub struct SupplierComparisonAgent;
 
@@ -34,6 +34,10 @@ impl Agent for SupplierComparisonAgent {
             rag_enabled: false,
             output_schema: None,
             max_cost_usd: None,
+            input_schema: vec![
+                InputField::new("suppliers", "Suppliers (JSON)", InputKind::Json, true).with_example("supplier,unit_price,lead_time_days,quality_score\nAcme,25,7,95"),
+                InputField::new("weights", "Weights (JSON)", InputKind::Json, false).with_example("{\"price\":0.4,\"quality\":0.3,\"delivery\":0.2,\"reliability\":0.1}"),
+            ],
         }
     }
 

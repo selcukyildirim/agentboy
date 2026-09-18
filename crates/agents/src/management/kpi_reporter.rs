@@ -1,7 +1,7 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits};
+use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
 use crate::csv_util;
 
 pub struct KPIReporterAgent;
@@ -10,7 +10,11 @@ impl KPIReporterAgent { pub fn new() -> Self { Self } }
 #[async_trait::async_trait]
 impl Agent for KPIReporterAgent {
     fn manifest(&self) -> AgentManifest {
-        AgentManifest { id: "management.kpi-reporter".to_string(), version: "2.0.0".to_string(), name: "KPI Reporter".to_string(), department: "Management".to_string(), description: "Track KPIs across departments, identify trends, and highlight performance gaps".to_string(), tier: AgentTier::Free, skills: vec!["spreadsheet.parse".to_string(), "spreadsheet.analyze".to_string(), "llm.analysis".to_string()], permissions: AgentPermissions { filesystem_read: true, filesystem_write: false, network_llm: true }, execution: ExecutionLimits { max_steps: 30, timeout_seconds: 120 }, rag_enabled: false, output_schema: None, max_cost_usd: None }
+        AgentManifest { id: "management.kpi-reporter".to_string(), version: "2.0.0".to_string(), name: "KPI Reporter".to_string(), department: "Management".to_string(), description: "Track KPIs across departments, identify trends, and highlight performance gaps".to_string(), tier: AgentTier::Free, skills: vec!["spreadsheet.parse".to_string(), "spreadsheet.analyze".to_string(), "llm.analysis".to_string()], permissions: AgentPermissions { filesystem_read: true, filesystem_write: false, network_llm: true }, execution: ExecutionLimits { max_steps: 30, timeout_seconds: 120 }, rag_enabled: false, output_schema: None, max_cost_usd: None,
+            input_schema: vec![
+                InputField::new("kpis", "KPIs", InputKind::File, true).with_example("kpi,target,actual,unit\nRevenue,100000,95000,USD"),
+            ],
+        }
     }
     fn supports_context(&self) -> bool { true }
     async fn execute_with_context(&self, input: serde_json::Value, ctx: &dyn AgentContext) -> AppResult<serde_json::Value> {

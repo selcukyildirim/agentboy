@@ -1,7 +1,7 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits};
+use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
 use std::collections::HashMap;
 
 use crate::csv_util;
@@ -41,6 +41,9 @@ impl Agent for FinancialRiskAgent {
             rag_enabled: false,
             output_schema: None,
             max_cost_usd: None,
+            input_schema: vec![
+                InputField::new("transactions", "Transactions", InputKind::File, true).with_example("date,amount,category\n2024-01-01,1000,inflow\n2024-01-02,500,outflow"),
+            ],
         }
     }
 

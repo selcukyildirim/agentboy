@@ -1,7 +1,7 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits};
+use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
 
 pub struct DecisionMatrixAgent;
 impl DecisionMatrixAgent { pub fn new() -> Self { Self } }
@@ -9,7 +9,12 @@ impl DecisionMatrixAgent { pub fn new() -> Self { Self } }
 #[async_trait::async_trait]
 impl Agent for DecisionMatrixAgent {
     fn manifest(&self) -> AgentManifest {
-        AgentManifest { id: "management.decision-matrix".to_string(), version: "2.0.0".to_string(), name: "Decision Matrix".to_string(), department: "Management".to_string(), description: "Weighted multi-criteria decision analysis for strategic choices".to_string(), tier: AgentTier::Free, skills: vec!["spreadsheet.parse".to_string(), "spreadsheet.analyze".to_string(), "llm.analysis".to_string()], permissions: AgentPermissions { filesystem_read: true, filesystem_write: false, network_llm: true }, execution: ExecutionLimits { max_steps: 30, timeout_seconds: 120 }, rag_enabled: false, output_schema: None, max_cost_usd: None }
+        AgentManifest { id: "management.decision-matrix".to_string(), version: "2.0.0".to_string(), name: "Decision Matrix".to_string(), department: "Management".to_string(), description: "Weighted multi-criteria decision analysis for strategic choices".to_string(), tier: AgentTier::Free, skills: vec!["spreadsheet.parse".to_string(), "spreadsheet.analyze".to_string(), "llm.analysis".to_string()], permissions: AgentPermissions { filesystem_read: true, filesystem_write: false, network_llm: true }, execution: ExecutionLimits { max_steps: 30, timeout_seconds: 120 }, rag_enabled: false, output_schema: None, max_cost_usd: None,
+            input_schema: vec![
+                InputField::new("options", "Options (JSON)", InputKind::Json, true).with_example("[{\"name\":\"Option A\",\"score\":8},{\"name\":\"Option B\",\"score\":6}]"),
+                InputField::new("weights", "Weights (JSON)", InputKind::Json, false).with_example("{\"price\":0.4,\"quality\":0.3,\"delivery\":0.2,\"reliability\":0.1}"),
+            ],
+        }
     }
     fn supports_context(&self) -> bool { true }
     async fn execute_with_context(&self, input: serde_json::Value, ctx: &dyn AgentContext) -> AppResult<serde_json::Value> {
