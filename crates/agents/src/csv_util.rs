@@ -225,13 +225,14 @@ pub fn empty_response(agent: &str, inputs: &[&str]) -> serde_json::Value {
 }
 
 pub fn percentile(values: &[f64], p: f64) -> f64 {
-    if values.is_empty() {
+    let mut sorted: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
+    if sorted.is_empty() {
         return 0.0;
     }
-    let mut sorted = values.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let idx = (p / 100.0 * (sorted.len() - 1) as f64).round() as usize;
-    sorted[idx]
+    let clamped_p = p.clamp(0.0, 100.0);
+    let idx = (clamped_p / 100.0 * (sorted.len() - 1) as f64).round() as usize;
+    sorted[idx.min(sorted.len() - 1)]
 }
 
 #[cfg(test)]
@@ -293,6 +294,27 @@ mod tests {
         assert_eq!(percentile(&values, 50.0), 3.0);
         assert_eq!(percentile(&values, 0.0), 1.0);
         assert_eq!(percentile(&values, 100.0), 5.0);
+    }
+
+    #[test]
+    fn test_percentile_ignores_nan_and_infinity() {
+        let values = vec![1.0, f64::NAN, 3.0, f64::INFINITY, 5.0];
+        assert_eq!(percentile(&values, 50.0), 3.0);
+        assert_eq!(percentile(&values, 0.0), 1.0);
+        assert_eq!(percentile(&values, 100.0), 5.0);
+    }
+
+    #[test]
+    fn test_percentile_all_nan_returns_zero() {
+        let values = vec![f64::NAN, f64::NAN];
+        assert_eq!(percentile(&values, 50.0), 0.0);
+    }
+
+    #[test]
+    fn test_percentile_clamps_out_of_range() {
+        let values = vec![1.0, 2.0, 3.0];
+        assert_eq!(percentile(&values, -10.0), 1.0);
+        assert_eq!(percentile(&values, 150.0), 3.0);
     }
 
     // M5: Locale-aware parsing tests

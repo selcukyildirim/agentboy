@@ -49,6 +49,13 @@ pub trait LlmProvider: Send + Sync {
 pub struct AgentConfig {
     pub max_tokens: u32,
     pub temperature: f64,
+    /// When true, LLM calls are skipped and agents fall back to deterministic-only
+    /// analysis (privacy-first / air-gapped operation).
+    #[serde(default)]
+    pub offline: bool,
+    /// Per-agent overrides. Recognized keys: `model` (string), `temperature`
+    /// (number), `max_tokens` (number). Unknown keys are ignored.
+    #[serde(default)]
     pub custom: HashMap<String, serde_json::Value>,
 }
 
@@ -57,8 +64,33 @@ impl Default for AgentConfig {
         Self {
             max_tokens: 2048,
             temperature: 0.3,
+            offline: false,
             custom: HashMap::new(),
         }
+    }
+}
+
+impl AgentConfig {
+    pub fn model_override(&self) -> Option<String> {
+        self.custom
+            .get("model")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+    }
+
+    pub fn effective_temperature(&self) -> f64 {
+        self.custom
+            .get("temperature")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(self.temperature)
+    }
+
+    pub fn effective_max_tokens(&self) -> u32 {
+        self.custom
+            .get("max_tokens")
+            .and_then(|v| v.as_u64())
+            .map(|v| v as u32)
+            .unwrap_or(self.max_tokens)
     }
 }
 
@@ -69,10 +101,18 @@ pub trait AgentContext: Send + Sync {
     fn last_egress_manifest(&self) -> Option<EgressManifest>;
 
     async fn call_llm(&self, system_prompt: &str, user_prompt: &str) -> AppResult<String> {
+        if self.config().offline {
+            tracing::debug!("Offline mode: skipping LLM call, returning deterministic placeholder");
+            return Ok(
+                "[offline] LLM analysis skipped (offline mode enabled); deterministic results only."
+                    .to_string(),
+            );
+        }
+
         let (sanitized_system, sanitized_user) = self.sanitize_for_egress(system_prompt, user_prompt)?;
 
         let request = LlmCompletionRequest {
-            model: None,
+            model: self.config().model_override(),
             messages: vec![
                 LlmMessage {
                     role: "system".to_string(),
@@ -83,8 +123,8 @@ pub trait AgentContext: Send + Sync {
                     content: sanitized_user,
                 },
             ],
-            max_tokens: Some(self.config().max_tokens),
-            temperature: Some(self.config().temperature),
+            max_tokens: Some(self.config().effective_max_tokens()),
+            temperature: Some(self.config().effective_temperature()),
         };
 
         let response = self.llm().complete(request).await?;
@@ -319,6 +359,39 @@ mod tests {
         let config = AgentConfig::default();
         assert_eq!(config.max_tokens, 2048);
         assert!((config.temperature - 0.3).abs() < 0.01);
+        assert!(!config.offline);
+    }
+
+    #[tokio::test]
+    async fn test_offline_mode_skips_llm() {
+        let llm = MockLlmProvider::with_response("should not be called");
+        let mut config = AgentConfig::default();
+        config.offline = true;
+        let ctx = MockAgentContext::with_config(llm, config);
+
+        let result = ctx.call_llm("system", "user").await.unwrap();
+        assert!(result.contains("[offline]"));
+        assert_eq!(ctx.provider().times_called(), 0);
+    }
+
+    #[test]
+    fn test_custom_overrides() {
+        let mut config = AgentConfig::default();
+        config.custom.insert("model".to_string(), serde_json::json!("gpt-4o"));
+        config.custom.insert("temperature".to_string(), serde_json::json!(0.9));
+        config.custom.insert("max_tokens".to_string(), serde_json::json!(512));
+
+        assert_eq!(config.model_override().as_deref(), Some("gpt-4o"));
+        assert!((config.effective_temperature() - 0.9).abs() < 0.001);
+        assert_eq!(config.effective_max_tokens(), 512);
+    }
+
+    #[test]
+    fn test_custom_overrides_default_when_absent() {
+        let config = AgentConfig::default();
+        assert!(config.model_override().is_none());
+        assert!((config.effective_temperature() - 0.3).abs() < 0.001);
+        assert_eq!(config.effective_max_tokens(), 2048);
     }
 
     #[tokio::test]

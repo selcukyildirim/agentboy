@@ -26,6 +26,8 @@ pub fn run() {
             commands::execute_agent,
             commands::list_workflows,
             commands::create_workflow,
+            commands::add_workflow_step,
+            commands::delete_workflow,
             commands::execute_workflow,
             commands::list_documents,
             commands::upload_document,
