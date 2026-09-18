@@ -1,9 +1,13 @@
 use agent_runtime::registry::AgentRegistry;
+use orchestrator::Orchestrator;
+use skill_sdk::SkillRegistry;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub struct AppState {
     pub registry: Arc<RwLock<AgentRegistry>>,
+    pub orchestrator: Arc<Orchestrator>,
+    pub skills: Arc<SkillRegistry>,
 }
 
 impl AppState {
@@ -15,6 +19,8 @@ impl AppState {
 
         Self {
             registry: Arc::new(RwLock::new(registry)),
+            orchestrator: Arc::new(Orchestrator::new()),
+            skills: Arc::new(orchestrator::build_registry()),
         }
     }
 }

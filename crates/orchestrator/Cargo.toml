@@ -6,8 +6,11 @@ edition.workspace = true
 [dependencies]
 agent-common.workspace = true
 agent-runtime.workspace = true
+async-trait.workspace = true
+audit-core.workspace = true
 skill-sdk.workspace = true
 tool-runtime.workspace = true
+document-parser.workspace = true
 llm-gateway.workspace = true
 tokio.workspace = true
 tracing.workspace = true

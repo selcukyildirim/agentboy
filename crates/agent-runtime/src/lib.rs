@@ -2,7 +2,6 @@ pub mod agent;
 pub mod context;
 pub mod manifest;
 pub mod registry;
-pub mod skills;
 pub mod state;
 
 pub use agent::{Agent, AgentExecutor};
@@ -12,5 +11,4 @@ pub use context::{
 };
 pub use manifest::{AgentManifest, InputField, InputKind};
 pub use registry::AgentRegistry;
-pub use skills::{SkillCatalog, KNOWN_SKILLS};
 pub use state::{ExecutionState, ExecutionStep, OutputValidator, StepGuard};

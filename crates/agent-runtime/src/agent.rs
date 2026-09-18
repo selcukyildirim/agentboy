@@ -1,6 +1,5 @@
 use crate::context::AgentContext;
 use crate::manifest::{AgentManifest, AgentPermissions, AgentTier};
-use crate::skills::SkillCatalog;
 use agent_common::error::{AppError, AppResult};
 use audit_core::event::{AuditEvent, AuditResult};
 use audit_core::store::SqliteAuditStore;
@@ -68,22 +67,6 @@ impl AgentExecutor {
         }
 
         if let Err(e) = Self::check_permissions(&manifest.permissions) {
-            if let Some(store) = audit_store {
-                let _ = store.record(AuditEvent {
-                    event_id: uuid::Uuid::new_v4(),
-                    execution_id: None,
-                    agent_id: agent_id.clone(),
-                    action: "execute".to_string(),
-                    resource: format!("agent/{}", agent_id),
-                    result: AuditResult::Denied,
-                    details: Some(serde_json::json!({"error": e.to_string()})),
-                    timestamp: Utc::now(),
-                }).await;
-            }
-            return Err(e);
-        }
-
-        if let Err(e) = SkillCatalog::new().validate(&manifest.skills) {
             if let Some(store) = audit_store {
                 let _ = store.record(AuditEvent {
                     event_id: uuid::Uuid::new_v4(),

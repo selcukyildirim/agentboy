@@ -1,5 +1,4 @@
 use agent_common::error::{ApiError, ErrorCode};
-use agent_runtime::agent::AgentExecutor;
 use agent_runtime::context::{AgentConfig, AgentContext, DefaultAgentContext, LlmProvider, LlmUsage};
 use agent_runtime::manifest::InputField;
 use serde::{Deserialize, Serialize};
@@ -87,71 +86,92 @@ pub async fn execute_agent(
     tracing::info!(agent_id = %agent_id, "Executing agent from UI");
 
     let offline = offline.unwrap_or(false);
-    let execution_id = uuid::Uuid::new_v4().to_string();
     let started_at = chrono::Utc::now();
     let start = std::time::Instant::now();
 
-    let mut steps: Vec<executions::ExecutionStep> = Vec::new();
-
-    let result = {
+    let (outcome, usage, model_name, orch_steps, orch_id) = {
         let registry = state.registry.read().await;
         let agent = registry.get(&agent_id).ok_or_else(|| {
             ApiError::new(ErrorCode::NOT_FOUND, format!("Agent {agent_id} not found"))
         })?;
 
         let manifest = agent.manifest();
-        steps.push(executions::ExecutionStep {
-            step_number: 1,
-            step_type: "planning".to_string(),
-            description: format!("Resolve agent '{}' v{}", manifest.id, manifest.version),
-            status: "completed".to_string(),
-            duration_ms: 0,
-        });
-
         let mut config = AgentConfig::default();
         config.offline = offline;
 
         let mut usage = LlmUsage::default();
         let mut model_name: Option<String> = None;
+        let mut orch_steps = Vec::new();
+        let mut orch_id: Option<uuid::Uuid> = None;
+
+        let mut run = |result: agent_common::error::AppResult<(uuid::Uuid, serde_json::Value)>| {
+            match result {
+                Ok((eid, out)) => {
+                    orch_id = Some(eid);
+                    Ok(out)
+                }
+                Err(e) => Err(e),
+            }
+        };
 
         let outcome = if manifest.permissions.network_llm && !offline {
             let spec = resolve_provider_spec().await?;
             model_name = Some(spec.model.clone());
             let provider = llm_factory::build(&spec).map_err(ApiError::from)?;
             let ctx = DefaultAgentContext::new(Box::new(DynLlmProvider(provider)), config);
-            let outcome = AgentExecutor::run(agent, input.clone(), Some(&ctx)).await;
+            let raw = state
+                .orchestrator
+                .execute(&state.skills, agent, input.clone(), Some(&ctx), None)
+                .await;
             usage = ctx.total_usage();
-            outcome
+            run(raw)
         } else if manifest.permissions.network_llm && offline {
-            steps.push(executions::ExecutionStep {
-                step_number: 2,
-                step_type: "note".to_string(),
-                description: "Offline mode: LLM analysis skipped".to_string(),
-                status: "completed".to_string(),
-                duration_ms: 0,
-            });
             let ctx = DefaultAgentContext::new(Box::new(NoOpLlmProvider), config);
-            AgentExecutor::run(agent, input.clone(), Some(&ctx)).await
+            let raw = state
+                .orchestrator
+                .execute(&state.skills, agent, input.clone(), Some(&ctx), None)
+                .await;
+            usage = ctx.total_usage();
+            run(raw)
         } else {
-            AgentExecutor::run(agent, input.clone(), None).await
+            let raw = state
+                .orchestrator
+                .execute(&state.skills, agent, input.clone(), None, None)
+                .await;
+            run(raw)
         };
 
-        (outcome, usage, model_name)
+        if let Some(eid) = orch_id {
+            orch_steps = state.orchestrator.get_steps(eid).await.unwrap_or_default();
+        }
+
+        (outcome, usage, model_name, orch_steps, orch_id)
     };
 
-    let (outcome, usage, model_name) = result;
+    let execution_id = orch_id
+        .map(|u| u.to_string())
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     let duration_ms = start.elapsed().as_millis() as u64;
     let cost_usd = model_name
         .as_deref()
         .and_then(|m| cost::estimate_cost_usd(m, &usage));
 
-    steps.push(executions::ExecutionStep {
-        step_number: steps.len() as u32 + 1,
-        step_type: "execution".to_string(),
-        description: format!("Execute agent '{agent_id}'"),
-        status: if outcome.is_ok() { "completed" } else { "failed" }.to_string(),
-        duration_ms,
-    });
+    let steps: Vec<executions::ExecutionStep> = orch_steps
+        .iter()
+        .map(|s| {
+            let failed = matches!(
+                s.state,
+                agent_runtime::state::ExecutionState::Failed { .. }
+            );
+            executions::ExecutionStep {
+                step_number: s.step_number,
+                step_type: format!("{:?}", s.state),
+                description: format!("{:?}", s.state),
+                status: if failed { "failed" } else { "completed" }.to_string(),
+                duration_ms: s.duration_ms.unwrap_or(0),
+            }
+        })
+        .collect();
 
     let status = if outcome.is_ok() { "completed" } else { "failed" };
     let execution = executions::Execution {

@@ -1,7 +1,11 @@
 use agent_common::error::{AppError, AppResult};
 use agent_common::types::{ExecutionId, ExecutionStatus};
+use agent_runtime::agent::{Agent, AgentExecutor};
+use agent_runtime::context::AgentContext;
 use agent_runtime::state::{ExecutionState, ExecutionStep};
 use crate::context::ExecutionContext;
+use audit_core::store::SqliteAuditStore;
+use skill_sdk::registry::SkillRegistry;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -132,6 +136,92 @@ impl Orchestrator {
             Some(_) => ExecutionStatus::Running,
             None => ExecutionStatus::Pending,
         }
+    }
+
+    /// Validate skills, run the agent through the state machine, and record
+    /// execution steps. This is the single execution entry point used by the
+    /// desktop and workflows.
+    pub async fn execute(
+        &self,
+        skill_registry: &SkillRegistry,
+        agent: &dyn Agent,
+        input: serde_json::Value,
+        ctx: Option<&dyn AgentContext>,
+        audit_store: Option<&SqliteAuditStore>,
+    ) -> AppResult<(ExecutionId, serde_json::Value)> {
+        let manifest = agent.manifest();
+
+        if let Err(problems) = skill_registry.validate(&manifest.skills) {
+            return Err(AppError::Validation(format!(
+                "Agent '{}' has unresolved skills: {}",
+                manifest.id,
+                problems.join("; ")
+            )));
+        }
+
+        let execution_id = self
+            .start_execution(
+                &manifest.id,
+                &manifest.version,
+                input.clone(),
+                manifest.execution.max_steps,
+                manifest.execution.timeout_seconds,
+            )
+            .await?;
+
+        self.push_step(
+            execution_id,
+            ExecutionStep {
+                step_number: 1,
+                state: ExecutionState::Planning,
+                input: input.clone(),
+                output: None,
+                started_at: chrono::Utc::now().to_rfc3339(),
+                completed_at: Some(chrono::Utc::now().to_rfc3339()),
+                duration_ms: Some(0),
+            },
+        )
+        .await;
+
+        self.transition(execution_id, ExecutionState::Planning).await?;
+
+        let outcome = AgentExecutor::run_with_audit(agent, input, ctx, audit_store).await;
+
+        match &outcome {
+            Ok(output) => {
+                self.transition(execution_id, ExecutionState::Validating).await?;
+                self.push_step(
+                    execution_id,
+                    ExecutionStep {
+                        step_number: 2,
+                        state: ExecutionState::Validating,
+                        input: serde_json::json!({}),
+                        output: Some(output.clone()),
+                        started_at: chrono::Utc::now().to_rfc3339(),
+                        completed_at: Some(chrono::Utc::now().to_rfc3339()),
+                        duration_ms: None,
+                    },
+                )
+                .await;
+                self.transition(execution_id, ExecutionState::Completed).await?;
+            }
+            Err(e) => {
+                self.transition(
+                    execution_id,
+                    ExecutionState::Failed {
+                        reason: e.to_string(),
+                    },
+                )
+                .await?;
+            }
+        }
+
+        outcome.map(|output| (execution_id, output))
+    }
+
+    async fn push_step(&self, execution_id: ExecutionId, step: ExecutionStep) {
+        let mut steps = self.steps.write().await;
+        steps.entry(execution_id.to_string()).or_default().push(step);
     }
 }
 

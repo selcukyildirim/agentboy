@@ -1,23 +1,22 @@
-use agent_common::error::{AppError, AppResult};
+use agent_common::error::AppResult;
 use std::collections::HashMap;
+use tool_runtime::tools::csv_engine::CsvEngine;
 
 pub fn parse_csv_to_maps(csv: &str) -> AppResult<Vec<HashMap<String, String>>> {
-    let mut rdr = csv::Reader::from_reader(csv.as_bytes());
-    let headers: Vec<String> = rdr
-        .headers()
-        .map_err(|e| AppError::Validation(format!("CSV header error: {}", e)))?
-        .iter()
-        .map(|h| h.to_string())
-        .collect();
+    // Parsing is delegated to the shared tool-runtime CSV engine so every
+    // agent uses the same RFC 4180 implementation (single source of truth).
+    let rows = CsvEngine::new().parse(csv)?;
+    if rows.is_empty() {
+        return Ok(Vec::new());
+    }
 
+    let headers = &rows[0];
     let mut records = Vec::new();
-    for result in rdr.records() {
-        let record =
-            result.map_err(|e| AppError::Validation(format!("CSV record error: {}", e)))?;
+    for row in &rows[1..] {
         let map: HashMap<String, String> = headers
             .iter()
-            .zip(record.iter())
-            .map(|(h, v)| (h.clone(), v.to_string()))
+            .enumerate()
+            .map(|(i, h)| (h.clone(), row.get(i).cloned().unwrap_or_default()))
             .collect();
         records.push(map);
     }
