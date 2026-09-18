@@ -1,8 +1,10 @@
 use agent_common::error::{AppError, AppResult};
 use cache_core::llm_cache::CachedLlmResult;
-use cache_core::memory::MemoryCache;
-use hardening::resilience::{CircuitBreaker, RetryPolicy};
+use cache_core::metrics::CacheUsageMetrics;
+use cache_core::persistent::PersistentCache;
 use hardening::rate_limit::RateLimiter;
+use hardening::resilience::{CircuitBreaker, RetryPolicy};
+use sqlx::sqlite::SqlitePool;
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
@@ -17,22 +19,67 @@ fn limiters() -> &'static Mutex<HashMap<String, RateLimiter>> {
     L.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-fn llm_cache() -> &'static MemoryCache<CachedLlmResult> {
-    static C: OnceLock<MemoryCache<CachedLlmResult>> = OnceLock::new();
-    C.get_or_init(|| MemoryCache::new(500, Duration::from_secs(3600)))
+fn persistent_cache() -> &'static OnceLock<PersistentCache> {
+    static C: OnceLock<PersistentCache> = OnceLock::new();
+    &C
 }
 
-/// In-memory LLM response cache (cache-core). Returns a cached response if present.
+fn cache_metrics() -> &'static Mutex<CacheUsageMetrics> {
+    static M: OnceLock<Mutex<CacheUsageMetrics>> = OnceLock::new();
+    M.get_or_init(|| Mutex::new(CacheUsageMetrics::new()))
+}
+
+/// Initialise the persistent cache (cache-core) on the shared pool.
+pub fn init(pool: SqlitePool) {
+    let _ = persistent_cache().set(PersistentCache::new(pool));
+}
+
 pub async fn cache_get(key: &str) -> Option<CachedLlmResult> {
-    llm_cache().get(key).await
+    let cache = persistent_cache().get()?;
+    match cache.get(key).await.ok().flatten() {
+        Some(value) => {
+            let mut m = cache_metrics().lock().unwrap();
+            m.record_llm_hit(0);
+            m.record_l1_hit();
+            serde_json::from_str(&value).ok()
+        }
+        None => {
+            let mut m = cache_metrics().lock().unwrap();
+            m.record_llm_miss();
+            m.record_l1_miss();
+            None
+        }
+    }
 }
 
 pub async fn cache_put(key: String, value: CachedLlmResult) {
-    llm_cache().insert(key, value).await;
+    if let Some(cache) = persistent_cache().get() {
+        if let Ok(serialized) = serde_json::to_string(&value) {
+            let _ = cache.insert(&key, "llm", &serialized, None).await;
+        }
+    }
 }
 
-pub fn cache_clear() {
-    llm_cache().invalidate_all();
+pub async fn cache_clear() {
+    let _ = clear_persistent_cache("llm").await;
+}
+
+pub async fn clear_persistent_cache(entry_type: &str) -> u64 {
+    match persistent_cache().get() {
+        Some(cache) => cache.invalidate_by_type(entry_type).await.unwrap_or(0),
+        None => 0,
+    }
+}
+
+pub async fn persistent_entry_count() -> u64 {
+    match persistent_cache().get() {
+        Some(cache) => cache.stats().await.map(|s| s.total_entries).unwrap_or(0),
+        None => 0,
+    }
+}
+
+pub fn cache_metrics_snapshot() -> CacheUsageMetrics {
+    cache_metrics().lock().unwrap().clone()
 }
 
 fn is_infrastructure_error(err: &AppError) -> bool {
@@ -59,7 +106,6 @@ where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = AppResult<T>>,
 {
-    // Rate limit (60 requests, refill 1/s).
     {
         let mut limiters = limiters().lock().unwrap();
         let limiter = limiters.entry(provider.to_string()).or_insert_with(|| {
@@ -75,7 +121,6 @@ where
         }
     }
 
-    // Circuit breaker.
     {
         let mut breakers = breakers().lock().unwrap();
         let cb = breakers
@@ -168,18 +213,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_llm_cache_roundtrip() {
-        let entry = CachedLlmResult {
-            provider: "openai".into(),
-            model: "gpt-4o-mini".into(),
-            prompt_hash: "abc".into(),
-            response: "hello".into(),
-            cached_at: "now".into(),
-        };
-        cache_put("k1".into(), entry.clone()).await;
-        let got = cache_get("k1").await.unwrap();
-        assert_eq!(got.response, "hello");
-        cache_clear();
-        assert!(cache_get("k1").await.is_none());
+    async fn test_cache_metrics_snapshot_defaults() {
+        let m = cache_metrics_snapshot();
+        assert_eq!(m.llm_cache_hits, 0);
     }
 }

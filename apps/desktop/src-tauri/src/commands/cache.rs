@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::sync::{Mutex, OnceLock};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CacheStats {
@@ -26,19 +25,33 @@ impl Default for CacheStats {
     }
 }
 
-fn get_stats() -> &'static Mutex<CacheStats> {
-    static CACHE: OnceLock<Mutex<CacheStats>> = OnceLock::new();
-    CACHE.get_or_init(|| Mutex::new(CacheStats::default()))
+#[tauri::command]
+pub async fn get_cache_stats() -> Result<CacheStats, String> {
+    let entries = crate::resilience::persistent_entry_count().await as usize;
+    let m = crate::resilience::cache_metrics_snapshot();
+
+    let hits = m.llm_cache_hits + m.l1_hits;
+    let misses = m.llm_cache_misses + m.l1_misses;
+    let total = hits + misses;
+    let hit_rate = if total > 0 {
+        hits as f64 / total as f64
+    } else {
+        0.0
+    };
+
+    Ok(CacheStats {
+        l1_entries: entries,
+        l1_size_bytes: 0,
+        l2_entries: entries,
+        l2_size_bytes: 0,
+        hit_rate,
+        total_requests: total,
+        total_hits: hits,
+    })
 }
 
 #[tauri::command]
-pub fn get_cache_stats() -> CacheStats {
-    get_stats().lock().unwrap().clone()
-}
-
-#[tauri::command]
-pub fn clear_cache() -> Result<String, String> {
-    *get_stats().lock().unwrap() = CacheStats::default();
-    crate::resilience::cache_clear();
+pub async fn clear_cache() -> Result<String, String> {
+    crate::resilience::cache_clear().await;
     Ok("Cache cleared successfully".to_string())
 }

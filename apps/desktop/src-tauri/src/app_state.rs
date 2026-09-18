@@ -32,6 +32,8 @@ impl AppState {
             .await
             .expect("failed to initialize executions table");
 
+        crate::resilience::init(pool.clone());
+
         let audit = SqliteAuditStore::new(&crate::db::db_url())
             .await
             .expect("failed to initialize audit store");

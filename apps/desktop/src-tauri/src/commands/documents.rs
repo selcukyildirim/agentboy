@@ -1,3 +1,6 @@
+use cache_core::content_hash::content_hash;
+use cache_core::llm_cache::CachedLlmResult;
+use cache_core::parse_cache::ParseCache;
 use document_parser::parser::{extract_text, AutoParser, DocumentParser};
 use rag_core::context_budget::ContextBudget;
 use rag_core::embedding::LocalEmbeddingProvider;
@@ -78,12 +81,38 @@ pub async fn upload_document(
     content: Vec<u8>,
     content_type: String,
 ) -> Result<DocumentInfo, String> {
-    // Real parsing via document-parser (PDF/DOCX/XLSX/CSV/JSON/XML/TXT/MD).
-    let parsed = AutoParser::new()
-        .parse(&content, &name)
-        .await
-        .map_err(|e| e.to_string())?;
-    let text = extract_text(&parsed);
+    // Real parsing via document-parser (PDF/DOCX/XLSX/CSV/JSON/XML/TXT/MD),
+    // memoised through the cache-core parse cache keyed by content hash.
+    let parse_cache = ParseCache::new("v1");
+    let hash = content_hash(&content);
+    let cache_key = parse_cache.cache_key(&hash, &name);
+
+    let text = match crate::resilience::cache_get(&cache_key).await {
+        Some(hit) => {
+            tracing::debug!(name = %name, "parse cache hit");
+            hit.response
+        }
+        None => {
+            let parsed = AutoParser::new()
+                .parse(&content, &name)
+                .await
+                .map_err(|e| e.to_string())?;
+            let parsed_text = extract_text(&parsed);
+            crate::resilience::cache_put(
+                cache_key,
+                CachedLlmResult {
+                    provider: "parse".to_string(),
+                    model: "document-parser".to_string(),
+                    prompt_hash: hash,
+                    response: parsed_text.clone(),
+                    cached_at: chrono::Utc::now().to_rfc3339(),
+                },
+            )
+            .await;
+            parsed_text
+        }
+    };
+
     let doc_id = uuid::Uuid::new_v4().to_string();
 
     let mut state = store().lock().await;

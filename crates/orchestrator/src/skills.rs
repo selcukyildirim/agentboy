@@ -7,8 +7,12 @@ use async_trait::async_trait;
 use skill_sdk::manifest::{SkillManifest, SkillTier};
 use skill_sdk::registry::SkillRegistry;
 use skill_sdk::skill::Skill;
+use tool_runtime::registry::ToolRegistry;
 use tool_runtime::tool::Tool;
 use tool_runtime::tools::csv_engine::CsvEngine;
+use tool_runtime::tools::filesystem::{FilesystemReadTool, FilesystemWriteTool};
+use tool_runtime::tools::json_transform::JsonTransform;
+use tool_runtime::tools::pdf_docx::{DocxParser, PdfParser};
 use tool_runtime::tools::xlsx_engine::XlsxEngine;
 
 type SkillFn = Arc<
@@ -54,15 +58,24 @@ impl Skill for FnSkill {
 /// A skill that delegates to a tool-runtime tool with a fixed operation.
 pub struct ToolSkill {
     manifest: SkillManifest,
-    tool: Arc<dyn Tool>,
+    registry: Arc<ToolRegistry>,
+    tool_id: &'static str,
     operation: &'static str,
 }
 
 impl ToolSkill {
-    pub fn new(id: &str, name: &str, description: &str, tool: Arc<dyn Tool>, operation: &'static str) -> Self {
+    pub fn new(
+        id: &str,
+        name: &str,
+        description: &str,
+        registry: Arc<ToolRegistry>,
+        tool_id: &'static str,
+        operation: &'static str,
+    ) -> Self {
         Self {
             manifest: manifest(id, name, description),
-            tool,
+            registry,
+            tool_id,
             operation,
         }
     }
@@ -81,7 +94,10 @@ impl Skill for ToolSkill {
                 serde_json::Value::String(self.operation.to_string()),
             );
         }
-        self.tool.execute(input).await
+        let tool = self.registry.get(self.tool_id).ok_or_else(|| {
+            agent_common::error::AppError::NotFound(format!("Tool {}", self.tool_id))
+        })?;
+        tool.execute(input).await
     }
 }
 
@@ -98,8 +114,26 @@ fn manifest(id: &str, name: &str, description: &str) -> SkillManifest {
     }
 }
 
+/// Build the tool registry with all available tools.
+pub fn build_tool_registry(allowed_dirs: Vec<std::path::PathBuf>) -> ToolRegistry {
+    let mut tools = ToolRegistry::new();
+    tools.register(Box::new(CsvEngine::new()));
+    tools.register(Box::new(XlsxEngine::new()));
+    tools.register(Box::new(JsonTransform::new()));
+    tools.register(Box::new(PdfParser::new()));
+    tools.register(Box::new(DocxParser::new()));
+    tools.register(Box::new(FilesystemReadTool::new(allowed_dirs.clone())));
+    tools.register(Box::new(FilesystemWriteTool::new(allowed_dirs)));
+    tools
+}
+
 /// Build the registry of concrete skills available to agents.
 pub fn build_registry() -> SkillRegistry {
+    build_registry_with_tools(Arc::new(build_tool_registry(vec![])))
+}
+
+/// Build the skill registry backed by a specific tool registry.
+pub fn build_registry_with_tools(tools: Arc<ToolRegistry>) -> SkillRegistry {
     let mut registry = SkillRegistry::new();
 
     // spreadsheet.* → tool-runtime
@@ -107,14 +141,16 @@ pub fn build_registry() -> SkillRegistry {
         "spreadsheet.parse",
         "Spreadsheet Parse",
         "Parse CSV/XLSX content into structured rows",
-        Arc::new(CsvEngine::new()),
+        tools.clone(),
+        "csv.parse",
         "parse",
     )));
     registry.register(Box::new(ToolSkill::new(
         "spreadsheet.analyze",
         "Spreadsheet Analyze",
         "Summarize spreadsheet columns",
-        Arc::new(XlsxEngine::new()),
+        tools.clone(),
+        "spreadsheet.process",
         "summarize",
     )));
     registry.register(Box::new(FnSkill::new(
