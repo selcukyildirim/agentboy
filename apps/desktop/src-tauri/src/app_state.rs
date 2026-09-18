@@ -24,6 +24,10 @@ impl AppState {
             .await
             .expect("failed to initialize local database");
 
+        crate::commands::executions::init(&pool)
+            .await
+            .expect("failed to initialize executions table");
+
         let audit = SqliteAuditStore::new(&crate::db::db_url())
             .await
             .expect("failed to initialize audit store");

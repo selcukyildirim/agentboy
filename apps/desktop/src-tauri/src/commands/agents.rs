@@ -190,7 +190,9 @@ pub async fn execute_agent(
         error: outcome.as_ref().err().map(|e| e.to_string()),
         steps: steps.clone(),
     };
-    executions::append_execution(execution);
+    if let Err(e) = executions::append_execution(&state.pool, &execution).await {
+        tracing::warn!(error = %e, "Failed to persist execution");
+    }
     crate::commands::health::record_agent_execution();
 
     match outcome {

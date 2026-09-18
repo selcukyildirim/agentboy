@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
-
-const MAX_ENTRIES: usize = 500;
+use sqlx::sqlite::SqlitePool;
+use sqlx::Row;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExecutionStep {
@@ -63,118 +61,153 @@ pub struct ExecutionStats {
     pub daily: Vec<DailyStat>,
 }
 
-fn storage_path() -> PathBuf {
-    let base = if cfg!(target_os = "windows") {
-        std::env::var("APPDATA")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| std::env::temp_dir())
-    } else {
-        std::env::var("HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| std::env::temp_dir())
-    };
-    base.join(".agentboy").join("executions.json")
-}
-
-fn load_from_disk() -> Vec<Execution> {
-    match std::fs::read_to_string(storage_path()) {
-        Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
-        Err(_) => Vec::new(),
-    }
-}
-
-fn save_to_disk(executions: &[Execution]) -> Result<(), String> {
-    let path = storage_path();
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("create dir: {e}"))?;
-    }
-    let slice = if executions.len() > MAX_ENTRIES {
-        &executions[executions.len() - MAX_ENTRIES..]
-    } else {
-        executions
-    };
-    let json = serde_json::to_string_pretty(slice).map_err(|e| format!("serialize: {e}"))?;
-    std::fs::write(&path, json).map_err(|e| format!("write: {e}"))?;
+pub async fn init(pool: &SqlitePool) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS agent_executions (
+            id TEXT PRIMARY KEY,
+            agent_id TEXT NOT NULL,
+            status TEXT NOT NULL,
+            input TEXT,
+            output TEXT,
+            started_at TEXT NOT NULL,
+            completed_at TEXT,
+            duration_ms INTEGER,
+            model TEXT,
+            input_tokens INTEGER DEFAULT 0,
+            output_tokens INTEGER DEFAULT 0,
+            cost_usd REAL,
+            error TEXT,
+            steps TEXT
+        )",
+    )
+    .execute(pool)
+    .await?;
     Ok(())
 }
 
-fn get_executions() -> &'static Mutex<Vec<Execution>> {
-    static EXECUTIONS: OnceLock<Mutex<Vec<Execution>>> = OnceLock::new();
-    EXECUTIONS.get_or_init(|| Mutex::new(load_from_disk()))
+pub async fn append_execution(pool: &SqlitePool, e: &Execution) -> Result<(), String> {
+    let input = serde_json::to_string(&e.input).unwrap_or_else(|_| "null".into());
+    let output = e.output.as_ref().map(|o| o.to_string());
+    let steps = serde_json::to_string(&e.steps).unwrap_or_else(|_| "[]".into());
+
+    sqlx::query(
+        "INSERT OR REPLACE INTO agent_executions
+         (id, agent_id, status, input, output, started_at, completed_at, duration_ms,
+          model, input_tokens, output_tokens, cost_usd, error, steps)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&e.id)
+    .bind(&e.agent_id)
+    .bind(&e.status)
+    .bind(input)
+    .bind(output)
+    .bind(&e.started_at)
+    .bind(&e.completed_at)
+    .bind(e.duration_ms.map(|d| d as i64))
+    .bind(&e.model)
+    .bind(e.input_tokens as i64)
+    .bind(e.output_tokens as i64)
+    .bind(e.cost_usd)
+    .bind(&e.error)
+    .bind(steps)
+    .execute(pool)
+    .await
+    .map_err(|err| err.to_string())?;
+    Ok(())
 }
 
-pub fn append_execution(execution: Execution) {
-    let mut execs = get_executions().lock().unwrap();
-    execs.push(execution);
-    if let Err(e) = save_to_disk(&execs) {
-        tracing::warn!(error = %e, "Failed to persist execution");
+fn row_to_execution(row: &sqlx::sqlite::SqliteRow) -> Execution {
+    let input: Option<String> = row.get("input");
+    let output: Option<String> = row.get("output");
+    let steps: Option<String> = row.get("steps");
+    Execution {
+        id: row.get("id"),
+        agent_id: row.get("agent_id"),
+        status: row.get("status"),
+        input: input.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!({})),
+        output: output.and_then(|s| serde_json::from_str(&s).ok()),
+        started_at: row.get("started_at"),
+        completed_at: row.get("completed_at"),
+        duration_ms: row.get::<Option<i64>, _>("duration_ms").map(|d| d as u64),
+        model: row.get("model"),
+        input_tokens: row.get::<Option<i64>, _>("input_tokens").unwrap_or(0) as u32,
+        output_tokens: row.get::<Option<i64>, _>("output_tokens").unwrap_or(0) as u32,
+        cost_usd: row.get("cost_usd"),
+        error: row.get("error"),
+        steps: steps.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default(),
     }
 }
 
 #[tauri::command]
-pub fn list_executions() -> Vec<Execution> {
-    get_executions().lock().unwrap().iter().rev().cloned().collect()
+pub async fn list_executions(
+    state: tauri::State<'_, crate::app_state::AppState>,
+) -> Result<Vec<Execution>, String> {
+    let rows = sqlx::query("SELECT * FROM agent_executions ORDER BY started_at DESC LIMIT 500")
+        .fetch_all(&state.pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(rows.iter().map(row_to_execution).collect())
 }
 
 #[tauri::command]
-pub fn get_execution(execution_id: String) -> Result<Execution, String> {
-    get_executions()
-        .lock()
-        .unwrap()
-        .iter()
-        .find(|e| e.id == execution_id)
-        .cloned()
-        .ok_or_else(|| format!("Execution {execution_id} not found"))
+pub async fn get_execution(
+    state: tauri::State<'_, crate::app_state::AppState>,
+    execution_id: String,
+) -> Result<Execution, String> {
+    let row = sqlx::query("SELECT * FROM agent_executions WHERE id = ?")
+        .bind(&execution_id)
+        .fetch_optional(&state.pool)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Execution {execution_id} not found"))?;
+    Ok(row_to_execution(&row))
 }
 
 #[tauri::command]
-pub fn get_execution_steps(execution_id: String) -> Result<Vec<ExecutionStep>, String> {
-    get_executions()
-        .lock()
-        .unwrap()
-        .iter()
-        .find(|e| e.id == execution_id)
-        .map(|e| e.steps.clone())
-        .ok_or_else(|| format!("Execution {execution_id} not found"))
+pub async fn get_execution_steps(
+    state: tauri::State<'_, crate::app_state::AppState>,
+    execution_id: String,
+) -> Result<Vec<ExecutionStep>, String> {
+    let execution = get_execution(state, execution_id).await?;
+    Ok(execution.steps)
 }
 
 #[tauri::command]
-pub fn delete_execution(execution_id: String) -> Result<(), String> {
-    let mut execs = get_executions().lock().unwrap();
-    execs.retain(|e| e.id != execution_id);
-    save_to_disk(&execs)
+pub async fn delete_execution(
+    state: tauri::State<'_, crate::app_state::AppState>,
+    execution_id: String,
+) -> Result<(), String> {
+    sqlx::query("DELETE FROM agent_executions WHERE id = ?")
+        .bind(&execution_id)
+        .execute(&state.pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
-pub fn get_execution_stats(days: Option<u32>) -> ExecutionStats {
+pub async fn get_execution_stats(
+    state: tauri::State<'_, crate::app_state::AppState>,
+    days: Option<u32>,
+) -> Result<ExecutionStats, String> {
     let days = days.unwrap_or(7) as i64;
-    let cutoff = chrono::Utc::now() - chrono::Duration::days(days);
+    let cutoff = (chrono::Utc::now() - chrono::Duration::days(days)).to_rfc3339();
 
-    let execs = get_executions().lock().unwrap();
-    let filtered: Vec<&Execution> = execs
-        .iter()
-        .filter(|e| {
-            chrono::DateTime::parse_from_rfc3339(&e.started_at)
-                .map(|dt| dt.with_timezone(&chrono::Utc) >= cutoff)
-                .unwrap_or(true)
-        })
-        .collect();
+    let rows = sqlx::query("SELECT * FROM agent_executions WHERE started_at >= ? ORDER BY started_at ASC")
+        .bind(cutoff)
+        .fetch_all(&state.pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
-    let total = filtered.len() as u64;
-    let success = filtered.iter().filter(|e| e.status == "completed").count() as u64;
-    let failed = filtered.iter().filter(|e| e.status == "failed").count() as u64;
-    let success_rate = if total > 0 {
-        success as f64 / total as f64
-    } else {
-        0.0
-    };
+    let execs: Vec<Execution> = rows.iter().map(row_to_execution).collect();
 
-    let mut durations: Vec<f64> = filtered
-        .iter()
-        .filter_map(|e| e.duration_ms.map(|d| d as f64))
-        .collect();
+    let total = execs.len() as u64;
+    let success = execs.iter().filter(|e| e.status == "completed").count() as u64;
+    let failed = execs.iter().filter(|e| e.status == "failed").count() as u64;
+    let success_rate = if total > 0 { success as f64 / total as f64 } else { 0.0 };
+
+    let mut durations: Vec<f64> = execs.iter().filter_map(|e| e.duration_ms.map(|d| d as f64)).collect();
     durations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
     let avg_duration_ms = if durations.is_empty() {
         0.0
     } else {
@@ -185,21 +218,16 @@ pub fn get_execution_stats(days: Option<u32>) -> ExecutionStats {
             return 0.0;
         }
         let idx = ((durations.len() - 1) as f64 * p).round() as usize;
-        durations[idx]
+        durations[idx.min(durations.len() - 1)]
     };
 
-    let total_input_tokens: u64 = filtered.iter().map(|e| e.input_tokens as u64).sum();
-    let total_output_tokens: u64 = filtered.iter().map(|e| e.output_tokens as u64).sum();
-    let total_cost_usd: f64 = filtered.iter().filter_map(|e| e.cost_usd).sum();
-    let avg_cost_usd = if total > 0 {
-        total_cost_usd / total as f64
-    } else {
-        0.0
-    };
+    let total_input_tokens: u64 = execs.iter().map(|e| e.input_tokens as u64).sum();
+    let total_output_tokens: u64 = execs.iter().map(|e| e.output_tokens as u64).sum();
+    let total_cost_usd: f64 = execs.iter().filter_map(|e| e.cost_usd).sum();
+    let avg_cost_usd = if total > 0 { total_cost_usd / total as f64 } else { 0.0 };
 
-    let mut by_day: std::collections::BTreeMap<String, DailyStat> =
-        std::collections::BTreeMap::new();
-    for e in &filtered {
+    let mut by_day: std::collections::BTreeMap<String, DailyStat> = std::collections::BTreeMap::new();
+    for e in &execs {
         let date = e.started_at.get(0..10).unwrap_or("").to_string();
         let entry = by_day.entry(date.clone()).or_insert(DailyStat {
             date,
@@ -219,7 +247,7 @@ pub fn get_execution_stats(days: Option<u32>) -> ExecutionStats {
         entry.cost_usd += e.cost_usd.unwrap_or(0.0);
     }
 
-    ExecutionStats {
+    Ok(ExecutionStats {
         total,
         success,
         failed,
@@ -232,5 +260,5 @@ pub fn get_execution_stats(days: Option<u32>) -> ExecutionStats {
         total_cost_usd,
         avg_cost_usd,
         daily: by_day.into_values().collect(),
-    }
+    })
 }
