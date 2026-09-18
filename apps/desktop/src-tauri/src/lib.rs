@@ -1,6 +1,7 @@
 mod app_state;
 mod commands;
 mod cost;
+mod db;
 mod llm_factory;
 mod provider_bridge;
 mod resilience;
@@ -13,7 +14,7 @@ pub fn run() {
         .with_env_filter("info")
         .init();
 
-    let app_state = AppState::new();
+    let app_state = tauri::async_runtime::block_on(AppState::new());
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -52,6 +53,8 @@ pub fn run() {
             commands::get_execution_steps,
             commands::delete_execution,
             commands::get_execution_stats,
+            commands::list_audit,
+            commands::list_audit_for_agent,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

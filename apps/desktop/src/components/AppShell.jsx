@@ -17,6 +17,7 @@ import {
   PanelLeftClose,
   Plus,
   Scale,
+  ScrollText,
   Search,
   Settings,
   Sun,
@@ -38,6 +39,7 @@ import { RunsPage } from "../features/runs/RunsPage";
 import { ReportsPage } from "../features/reports/ReportsPage";
 import { KnowledgePage } from "../features/knowledge/KnowledgePage";
 import { DecisionsPage } from "../features/decisions/DecisionsPage";
+import { AuditPage } from "../features/audit/AuditPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 
 const NAV = [
@@ -48,6 +50,7 @@ const NAV = [
   { id: "reports", labelKey: "nav.reports", icon: BarChart3 },
   { id: "knowledge", labelKey: "nav.knowledge", icon: BookOpen },
   { id: "decisions", labelKey: "nav.decisions", icon: Scale },
+  { id: "audit", labelKey: "nav.audit", icon: ScrollText },
 ];
 
 const DEPT_COLORS = [
@@ -219,6 +222,7 @@ export function AppShell() {
                 {activeNav === "reports" && <ReportsPage stats={stats} />}
                 {activeNav === "knowledge" && <KnowledgePage documents={documents} />}
                 {activeNav === "decisions" && <DecisionsPage />}
+                {activeNav === "audit" && <AuditPage />}
                 {activeNav === "settings" && <SettingsPage />}
               </>
             )}

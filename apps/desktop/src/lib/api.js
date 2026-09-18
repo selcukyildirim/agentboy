@@ -78,6 +78,10 @@ export const api = {
   recommendation: (decisionTypeId, context) =>
     call("get_recommendation", { decisionTypeId, context }),
 
+  // audit
+  audit: (limit) => call("list_audit", { limit }),
+  auditForAgent: (agentId, limit) => call("list_audit_for_agent", { agentId, limit }),
+
   // cache
   cacheStats: () => call("get_cache_stats"),
   clearCache: () => call("clear_cache"),

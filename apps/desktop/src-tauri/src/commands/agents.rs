@@ -121,7 +121,7 @@ pub async fn execute_agent(
             let ctx = DefaultAgentContext::new(Box::new(DynLlmProvider(provider)), config);
             let raw = state
                 .orchestrator
-                .execute(&state.skills, agent, input.clone(), Some(&ctx), None)
+                .execute(&state.skills, agent, input.clone(), Some(&ctx), Some(state.audit.as_ref()))
                 .await;
             usage = ctx.total_usage();
             run(raw)
@@ -129,14 +129,14 @@ pub async fn execute_agent(
             let ctx = DefaultAgentContext::new(Box::new(NoOpLlmProvider), config);
             let raw = state
                 .orchestrator
-                .execute(&state.skills, agent, input.clone(), Some(&ctx), None)
+                .execute(&state.skills, agent, input.clone(), Some(&ctx), Some(state.audit.as_ref()))
                 .await;
             usage = ctx.total_usage();
             run(raw)
         } else {
             let raw = state
                 .orchestrator
-                .execute(&state.skills, agent, input.clone(), None, None)
+                .execute(&state.skills, agent, input.clone(), None, Some(state.audit.as_ref()))
                 .await;
             run(raw)
         };
