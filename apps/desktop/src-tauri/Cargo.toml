@@ -21,6 +21,7 @@ orchestrator.workspace = true
 workflow-engine.workspace = true
 rag-core.workspace = true
 document-parser.workspace = true
+decision-core.workspace = true
 skill-sdk.workspace = true
 llm-gateway.workspace = true
 provider-openai.workspace = true
