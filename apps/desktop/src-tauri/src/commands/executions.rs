@@ -61,30 +61,6 @@ pub struct ExecutionStats {
     pub daily: Vec<DailyStat>,
 }
 
-pub async fn init(pool: &SqlitePool) -> Result<(), sqlx::Error> {
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS agent_executions (
-            id TEXT PRIMARY KEY,
-            agent_id TEXT NOT NULL,
-            status TEXT NOT NULL,
-            input TEXT,
-            output TEXT,
-            started_at TEXT NOT NULL,
-            completed_at TEXT,
-            duration_ms INTEGER,
-            model TEXT,
-            input_tokens INTEGER DEFAULT 0,
-            output_tokens INTEGER DEFAULT 0,
-            cost_usd REAL,
-            error TEXT,
-            steps TEXT
-        )",
-    )
-    .execute(pool)
-    .await?;
-    Ok(())
-}
-
 pub async fn append_execution(pool: &SqlitePool, e: &Execution) -> Result<(), String> {
     let input = serde_json::to_string(&e.input).unwrap_or_else(|_| "null".into());
     let output = e.output.as_ref().map(|o| o.to_string());

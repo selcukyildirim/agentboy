@@ -1,5 +1,6 @@
+use agent_common::db::Database;
 use agent_common::error::{AppError, AppResult};
-use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
+use sqlx::sqlite::SqlitePool;
 use std::path::PathBuf;
 
 /// Single local database file used by every subsystem (executions, audit,
@@ -17,22 +18,25 @@ pub fn db_path() -> PathBuf {
     base.join(".agentboy").join("agentboy.db")
 }
 
+pub fn db_path_string() -> String {
+    db_path().to_string_lossy().into_owned()
+}
+
 pub fn db_url() -> String {
     format!("sqlite:{}?mode=rwc", db_path().display())
 }
 
-pub async fn init_pool() -> AppResult<SqlitePool> {
+/// Initialise the shared database: create the directory, run migrations
+/// (agent-common is the single schema source) and apply pragmas.
+pub async fn init() -> AppResult<SqlitePool> {
     let path = db_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|e| AppError::Database(format!("create dir: {e}")))?;
     }
 
-    let pool = SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect(&db_url())
-        .await
-        .map_err(|e| AppError::Database(format!("connect db: {e}")))?;
+    let database = Database::new(&db_path_string()).await?;
+    let pool = database.pool().clone();
 
     apply_pragmas(&pool).await;
 
@@ -53,51 +57,4 @@ pub async fn apply_pragmas(pool: &SqlitePool) {
             tracing::warn!(pragma, error = %e, "pragma failed");
         }
     }
-}
-
-/// Create tables owned by the library subsystems (decision memory, workflow
-/// history, cache) on the shared pool.
-pub async fn init_schema(pool: &SqlitePool) -> AppResult<()> {
-    let statements = [
-        "CREATE TABLE IF NOT EXISTS decision_memory (
-            id TEXT PRIMARY KEY,
-            decision_type TEXT NOT NULL,
-            context_json TEXT NOT NULL,
-            recommendation_json TEXT NOT NULL,
-            outcome_json TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )",
-        "CREATE TABLE IF NOT EXISTS workflow_executions (
-            id TEXT PRIMARY KEY,
-            workflow_id TEXT NOT NULL,
-            workflow_version INTEGER NOT NULL,
-            status TEXT NOT NULL,
-            data_json TEXT NOT NULL,
-            started_at TEXT NOT NULL,
-            completed_at TEXT
-        )",
-        "CREATE TABLE IF NOT EXISTS workflow_versions (
-            workflow_id TEXT NOT NULL,
-            version INTEGER NOT NULL,
-            data_json TEXT NOT NULL,
-            changelog TEXT,
-            created_at TEXT NOT NULL,
-            PRIMARY KEY (workflow_id, version)
-        )",
-        "CREATE TABLE IF NOT EXISTS cache_entries (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL,
-            entry_type TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            expires_at TEXT
-        )",
-    ];
-
-    for stmt in statements {
-        sqlx::query(stmt)
-            .execute(pool)
-            .await
-            .map_err(|e| AppError::Database(format!("schema init: {e}")))?;
-    }
-    Ok(())
 }

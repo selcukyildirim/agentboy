@@ -20,17 +20,9 @@ impl AppState {
         agents::register_all(&mut registry);
         tracing::info!(count = registry.list().len(), "Registered agents");
 
-        let pool = crate::db::init_pool()
+        let pool = crate::db::init()
             .await
             .expect("failed to initialize local database");
-
-        crate::db::init_schema(&pool)
-            .await
-            .expect("failed to initialize subsystem schema");
-
-        crate::commands::executions::init(&pool)
-            .await
-            .expect("failed to initialize executions table");
 
         crate::resilience::init(pool.clone());
 
