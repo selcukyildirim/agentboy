@@ -26,7 +26,7 @@ import {
 import { useI18n } from "../app/I18nProvider";
 import { useTheme } from "../app/ThemeProvider";
 import { useAppData } from "../app/AppDataProvider";
-import { IconButton, cx } from "./ui";
+import { IconButton, Spinner, cx } from "./ui";
 import { CommandPalette } from "./CommandPalette";
 import { RunModal } from "./RunModal";
 import { ShellContext } from "./shellContext";
@@ -66,7 +66,8 @@ const DEPT_COLORS = [
 export function AppShell() {
   const { t } = useI18n();
   const { dark, toggleDark } = useTheme();
-  const { agents, executions, stats, health, documents, providers } = useAppData();
+  const { agents, executions, stats, health, documents, providers, loading } =
+    useAppData();
 
   const [activeNav, setActiveNav] = useState("home");
   const [sideOpen, setSideOpen] = useState(true);
@@ -194,23 +195,33 @@ export function AppShell() {
               openRun={openRun}
               onCreateFlow={() => goTo("flows")}
             />
-            {activeNav === "home" && <WorkspacePage {...pageProps} />}
-            {activeNav === "agents" && (
-              <AgentsPage
-                agents={agents}
-                query={query}
-                selectedCollection={selectedCollection}
-                setSelectedCollection={setSelectedCollection}
-                openAgent={openAgent}
-                openRun={openRun}
-              />
+            {loading && agents.length === 0 ? (
+              <div className="loadingOverlay">
+                <Spinner label={t("common.loading")} />
+              </div>
+            ) : (
+              <>
+                {activeNav === "home" && <WorkspacePage {...pageProps} />}
+                {activeNav === "agents" && (
+                  <AgentsPage
+                    agents={agents}
+                    query={query}
+                    selectedCollection={selectedCollection}
+                    setSelectedCollection={setSelectedCollection}
+                    openAgent={openAgent}
+                    openRun={openRun}
+                  />
+                )}
+                {activeNav === "flows" && <FlowsPage openRun={openRun} />}
+                {activeNav === "runs" && (
+                  <RunsPage executions={executions} openRun={openRun} />
+                )}
+                {activeNav === "reports" && <ReportsPage stats={stats} />}
+                {activeNav === "knowledge" && <KnowledgePage documents={documents} />}
+                {activeNav === "decisions" && <DecisionsPage />}
+                {activeNav === "settings" && <SettingsPage />}
+              </>
             )}
-            {activeNav === "flows" && <FlowsPage openRun={openRun} />}
-            {activeNav === "runs" && <RunsPage executions={executions} openRun={openRun} />}
-            {activeNav === "reports" && <ReportsPage stats={stats} />}
-            {activeNav === "knowledge" && <KnowledgePage documents={documents} />}
-            {activeNav === "decisions" && <DecisionsPage />}
-            {activeNav === "settings" && <SettingsPage />}
           </main>
 
           {inspectorOpen && selectedAgent && (
