@@ -1,7 +1,7 @@
 # Implementation Status
 
 ## Current Phase
-PHASE-15
+PHASE-16
 
 ## Completed
 
@@ -126,12 +126,26 @@ PHASE-15
 ### PHASE-14 - First Paid Business Agents
 - [x] Margin Guardian (negative/low margin, unusual discount, stale pricing, cost drift detection)
 - [x] Order Exception Agent (customer risk, limit issues, overdue balance, stock/pricing/quantity exceptions)
+- [x] 16 paid agents total (free repo defines the integration contract; proprietary implementations live in agentboy-pro)
 
 ### PHASE-15 - Company Knowledge Fabric
 - [x] Shared Knowledge Scopes (private, team, department, company visibility)
 - [x] ACL-aware Retrieval (user/team/department/role permissions, CRUD operations)
 - [x] Entity Graph (nodes, edges, path finding, type/scope filtering)
 - [x] Document Ingestion (chunking, metadata extraction, configurable chunk size/overlap)
+
+### PHASE-16 - Enterprise Hardening & Audit Remediation
+- [x] Agent runtime security gates: entitlement check, permission check, skill-catalog validation
+- [x] Egress-guard integration into every LLM call with egress manifest recording
+- [x] Audit trail recording (success/failure/denied) via SqliteAuditStore
+- [x] Execution timeout enforcement (tokio::time::timeout per manifest)
+- [x] Thread-safe desktop command state (removed all `unsafe static mut`)
+- [x] Unified LlmProvider contract + GatewayProviderBridge (removed hardcoded model)
+- [x] Locale-aware CSV number parsing (TR/EN) + CSV-injection sanitization
+- [x] O(n) duplicate detection; empty-input consistency helpers
+- [x] Desktop wired to agent registry: all 60 agents listable and executable
+- [x] Real provider tests, secure config, document chunking + keyword RAG, decision recommendations, metrics/health
+- [x] Golden test fixtures + golden integration tests
 
 ## In Progress
 - None
@@ -152,8 +166,8 @@ PHASE-15
 ## Test Status
 - cargo check: PASS
 - cargo fmt: PASS
-- cargo test: PASS (214 tests)
-- unit tests: 214 passed, 0 failed
+- cargo test: PASS (493 tests, 0 failures)
+- unit + integration + golden fixtures
 
 ## Crate Summary
 | Crate | Purpose | Status |
@@ -181,22 +195,31 @@ PHASE-15
 | orchestrator | Agent execution | Complete |
 | workflow-engine | Local workflows | Complete |
 | decision-core | Decision intelligence | Complete |
-| agents | 9 department agents | Complete |
+| agents | 60 department agents (10 departments) | Complete |
 | hardening | Crash recovery, resilience, health, metrics | Complete |
 | connector-sdk | Connector SDK, registry, manifest, health | Complete |
 | erp-core | ERP canonical model, adapter trait | Complete |
 | rbac-core | RBAC roles, permissions, policies | Complete |
-| paid-agents | Margin Guardian, Order Exception agents | Complete |
+| paid-agents | 16 paid agents (proprietary, in agentboy-pro) | Complete |
 | knowledge-fabric | Scopes, ACL, entity graph, ingestion | Complete |
 | agentboy-desktop | Tauri desktop app | Complete |
 
+## Security Gates (PHASE-16)
+Every agent execution passes through, in order:
+1. Entitlement check (`AgentTier`)
+2. Permission check (filesystem/network)
+3. Skill-catalog validation
+4. Egress guard (PII/secret redaction + egress manifest) on every LLM call
+5. Execution timeout enforcement
+6. Audit-trail recording (success / failure / denied)
+
 ## UI Features
 - Dashboard with stats cards + recent executions
-- 9 Department Agents grid with run buttons
-- AI Providers configuration (5 providers, test/save)
-- Knowledge workspace (drag & drop, document list)
-- Workflows page (list, execute)
-- Executions tab (history table with status)
-- Decisions tab (decision types grid)
+- 60 Department Agents grid (loaded from registry) with run buttons
+- AI Providers configuration (5 providers, live test/save)
+- Knowledge workspace (upload, chunking, keyword RAG)
+- Workflows page (create, list, execute)
+- Executions tab (history + real step timeline)
+- Decisions tab (decision types grid + recommendations)
 - Settings (General, Privacy, Cache management)
 - Dark theme UI with full CSS styling

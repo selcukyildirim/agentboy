@@ -1,3 +1,4 @@
+use agent_common::error::{ApiError, ErrorCode};
 use agent_runtime::agent::AgentExecutor;
 use agent_runtime::context::{AgentConfig, DefaultAgentContext, LlmProvider};
 use serde::{Deserialize, Serialize};
@@ -15,7 +16,9 @@ pub struct AgentInfo {
 }
 
 #[tauri::command]
-pub async fn list_agents(state: tauri::State<'_, AppState>) -> Result<Vec<AgentInfo>, String> {
+pub async fn list_agents(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<AgentInfo>, ApiError> {
     let registry = state.registry.read().await;
     Ok(registry
         .list()
@@ -39,7 +42,7 @@ pub async fn list_agents(state: tauri::State<'_, AppState>) -> Result<Vec<AgentI
 pub async fn get_agent_manifest(
     state: tauri::State<'_, AppState>,
     agent_id: String,
-) -> Result<AgentInfo, String> {
+) -> Result<AgentInfo, ApiError> {
     let registry = state.registry.read().await;
     registry
         .get(&agent_id)
@@ -53,7 +56,7 @@ pub async fn get_agent_manifest(
                 tier: format!("{:?}", m.tier),
             }
         })
-        .ok_or_else(|| format!("Agent {} not found", agent_id))
+        .ok_or_else(|| ApiError::new(ErrorCode::NOT_FOUND, format!("Agent {} not found", agent_id)))
 }
 
 #[tauri::command]
@@ -61,7 +64,7 @@ pub async fn execute_agent(
     state: tauri::State<'_, AppState>,
     agent_id: String,
     input: serde_json::Value,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, ApiError> {
     tracing::info!(agent_id = %agent_id, "Executing agent from UI");
 
     let execution_id = uuid::Uuid::new_v4().to_string();
@@ -70,9 +73,12 @@ pub async fn execute_agent(
 
     let result = {
         let registry = state.registry.read().await;
-        let agent = registry
-            .get(&agent_id)
-            .ok_or_else(|| format!("Agent {} not found", agent_id))?;
+        let agent = registry.get(&agent_id).ok_or_else(|| {
+            ApiError::new(
+                ErrorCode::NOT_FOUND,
+                format!("Agent {} not found", agent_id),
+            )
+        })?;
 
         let manifest = agent.manifest();
 
@@ -131,7 +137,7 @@ pub async fn execute_agent(
             "duration_ms": duration_ms,
             "output": output,
         })),
-        Err(e) => Err(e.to_string()),
+        Err(e) => Err(ApiError::from(e)),
     }
 }
 
