@@ -2,6 +2,7 @@ pub mod accounting;
 pub mod csv_util;
 pub mod finance;
 pub mod hr;
+pub mod legal;
 pub mod logistics;
 pub mod management;
 pub mod operations;
@@ -9,7 +10,6 @@ pub mod pmo;
 pub mod procurement;
 pub mod registry;
 pub mod sales;
-pub mod legal;
 
 pub use registry::{all_agents, all_manifests, register_all};
 
@@ -22,34 +22,34 @@ pub use finance::{
     FinancialRiskAgent, RevenueRecognitionAgent,
 };
 pub use hr::{
-    AttritionRiskAgent, HeadcountPlannerAgent, CompensationAnalyzerAgent,
-    TrainingROIAgent, EmployeeEngagementAgent, HiringPipelineAgent,
-};
-pub use logistics::{
-    RouteOptimizerAgent, FleetManagerAgent, WarehouseOptimizerAgent,
-    DeliveryTrackerAgent, FreightAnalyzerAgent, LastMileAgent,
-};
-pub use management::{
-    KPIReporterAgent, StrategicInitiativeAgent, BudgetTrackerAgent,
-    BoardReportAgent, OKRAgent, DecisionMatrixAgent,
-};
-pub use operations::{
-    InventoryOptimizerAgent, ProductionSchedulerAgent, QualityAssuranceAgent,
-    CapacityPlannerAgent, MaintenancePlannerAgent, SupplyChainRiskAgent,
-};
-pub use pmo::{
-    ProjectTrackerAgent, RiskRegisterAgent, ResourceAllocatorAgent,
-    StakeholderReportAgent, ChangeRequestAgent, LessonsLearnedAgent,
-};
-pub use procurement::{
-    PriceHistoryAgent, ProcurementDecisionAgent, SupplierComparisonAgent,
-    PurchaseOrderValidatorAgent, SpendAnalyticsAgent, VendorRiskAgent,
-};
-pub use sales::{
-    SalesForecastAgent, LeadScoringAgent, PipelineHealthAgent,
-    WinLossAnalysisAgent, CustomerSegmentationAgent, PricingOptimizationAgent,
+    AttritionRiskAgent, CompensationAnalyzerAgent, EmployeeEngagementAgent, HeadcountPlannerAgent,
+    HiringPipelineAgent, TrainingROIAgent,
 };
 pub use legal::{
-    ContractAnalyzerAgent, ComplianceCheckAgent, LegalRiskAssessmentAgent,
-    DocumentReviewerAgent, DeadlineTrackerAgent, RegulatoryMonitorAgent,
+    ComplianceCheckAgent, ContractAnalyzerAgent, DeadlineTrackerAgent, DocumentReviewerAgent,
+    LegalRiskAssessmentAgent, RegulatoryMonitorAgent,
+};
+pub use logistics::{
+    DeliveryTrackerAgent, FleetManagerAgent, FreightAnalyzerAgent, LastMileAgent,
+    RouteOptimizerAgent, WarehouseOptimizerAgent,
+};
+pub use management::{
+    BoardReportAgent, BudgetTrackerAgent, DecisionMatrixAgent, KPIReporterAgent, OKRAgent,
+    StrategicInitiativeAgent,
+};
+pub use operations::{
+    CapacityPlannerAgent, InventoryOptimizerAgent, MaintenancePlannerAgent,
+    ProductionSchedulerAgent, QualityAssuranceAgent, SupplyChainRiskAgent,
+};
+pub use pmo::{
+    ChangeRequestAgent, LessonsLearnedAgent, ProjectTrackerAgent, ResourceAllocatorAgent,
+    RiskRegisterAgent, StakeholderReportAgent,
+};
+pub use procurement::{
+    PriceHistoryAgent, ProcurementDecisionAgent, PurchaseOrderValidatorAgent, SpendAnalyticsAgent,
+    SupplierComparisonAgent, VendorRiskAgent,
+};
+pub use sales::{
+    CustomerSegmentationAgent, LeadScoringAgent, PipelineHealthAgent, PricingOptimizationAgent,
+    SalesForecastAgent, WinLossAnalysisAgent,
 };

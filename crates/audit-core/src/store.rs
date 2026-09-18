@@ -32,19 +32,15 @@ impl SqliteAuditStore {
         .await
         .map_err(|e| AppError::Database(format!("Failed to create audit table: {}", e)))?;
 
-        sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_audit_agent_id ON audit_events(agent_id)",
-        )
-        .execute(&pool)
-        .await
-        .map_err(|e| AppError::Database(format!("Failed to create index: {}", e)))?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_audit_agent_id ON audit_events(agent_id)")
+            .execute(&pool)
+            .await
+            .map_err(|e| AppError::Database(format!("Failed to create index: {}", e)))?;
 
-        sqlx::query(
-            "CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_events(created_at)",
-        )
-        .execute(&pool)
-        .await
-        .map_err(|e| AppError::Database(format!("Failed to create index: {}", e)))?;
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_events(created_at)")
+            .execute(&pool)
+            .await
+            .map_err(|e| AppError::Database(format!("Failed to create index: {}", e)))?;
 
         Ok(Self { pool })
     }
@@ -168,9 +164,7 @@ impl TryFrom<AuditRow> for AuditEvent {
             _ => AuditResult::Failure,
         };
 
-        let details = row
-            .details
-            .and_then(|s| serde_json::from_str(&s).ok());
+        let details = row.details.and_then(|s| serde_json::from_str(&s).ok());
 
         let timestamp = chrono::DateTime::parse_from_rfc3339(&row.created_at)
             .map(|dt| dt.with_timezone(&Utc))
@@ -194,9 +188,7 @@ mod tests {
     use super::*;
 
     async fn setup_store() -> SqliteAuditStore {
-        SqliteAuditStore::new("sqlite::memory:")
-            .await
-            .unwrap()
+        SqliteAuditStore::new("sqlite::memory:").await.unwrap()
     }
 
     fn make_event(agent_id: &str, action: &str) -> AuditEvent {

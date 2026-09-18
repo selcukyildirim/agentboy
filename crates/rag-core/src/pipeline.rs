@@ -98,14 +98,9 @@ impl RagPipeline {
         filter: Option<&MetadataFilter>,
         budget: Option<&mut ContextBudget>,
     ) -> AppResult<QueryResult> {
-        let query_embedding = self
-            .embedding_provider
-            .embed(&[query.to_string()])
-            .await?;
+        let query_embedding = self.embedding_provider.embed(&[query.to_string()]).await?;
 
-        let vector_results = self
-            .vector_index
-            .search(&query_embedding[0], top_k * 2);
+        let vector_results = self.vector_index.search(&query_embedding[0], top_k * 2);
 
         let bm25_results = self.bm25.search(query, top_k * 2);
 
@@ -191,7 +186,10 @@ mod tests {
         assert!(result.chunk_count > 0);
         assert!(result.total_tokens > 0);
 
-        let query_result = pipeline.query("revenue growth", 3, None, None).await.unwrap();
+        let query_result = pipeline
+            .query("revenue growth", 3, None, None)
+            .await
+            .unwrap();
         assert!(!query_result.chunks.is_empty());
         assert!(!query_result.citations.is_empty());
         assert!(!query_result.context_text.is_empty());

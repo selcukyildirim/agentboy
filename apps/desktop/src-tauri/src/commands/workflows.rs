@@ -90,7 +90,10 @@ pub fn list_workflows() -> Vec<WorkflowInfo> {
 
 #[tauri::command]
 pub fn create_workflow(name: String, description: String) -> Result<WorkflowInfo, String> {
-    let mut wf = Workflow::new(&format!("wf-{}", &uuid::Uuid::new_v4().to_string()[..8]), &name);
+    let mut wf = Workflow::new(
+        &format!("wf-{}", &uuid::Uuid::new_v4().to_string()[..8]),
+        &name,
+    );
     wf.description = description;
     wf.trigger = Trigger::Manual;
 
@@ -195,10 +198,7 @@ pub async fn execute_workflow(
 
     let workflow = {
         let workflows = store().lock().unwrap();
-        workflows
-            .iter()
-            .find(|w| w.id == workflow_id)
-            .cloned()
+        workflows.iter().find(|w| w.id == workflow_id).cloned()
     }
     .ok_or_else(|| format!("Workflow {workflow_id} not found"))?;
 

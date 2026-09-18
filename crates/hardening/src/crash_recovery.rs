@@ -54,7 +54,12 @@ impl CrashRecovery {
         Ok(())
     }
 
-    pub fn create_checkpoint(&self, execution_id: &str, step: u32, data: serde_json::Value) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn create_checkpoint(
+        &self,
+        execution_id: &str,
+        step: u32,
+        data: serde_json::Value,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut state = self.load_state()?.unwrap_or_else(|| CrashState {
             session_id: uuid::Uuid::new_v4().to_string(),
             started_at: chrono::Utc::now().to_rfc3339(),
@@ -65,7 +70,11 @@ impl CrashRecovery {
 
         state.last_checkpoint = chrono::Utc::now().to_rfc3339();
 
-        if let Some(exec) = state.pending_executions.iter_mut().find(|e| e.execution_id == execution_id) {
+        if let Some(exec) = state
+            .pending_executions
+            .iter_mut()
+            .find(|e| e.execution_id == execution_id)
+        {
             exec.current_step = step;
             exec.checkpoint_data = Some(data);
         } else {
@@ -169,7 +178,9 @@ mod tests {
         let _ = std::fs::create_dir_all(&dir);
 
         let recovery = CrashRecovery::new(dir.clone());
-        recovery.create_checkpoint("exec-1", 5, serde_json::json!({"step": 5})).unwrap();
+        recovery
+            .create_checkpoint("exec-1", 5, serde_json::json!({"step": 5}))
+            .unwrap();
 
         let loaded = recovery.load_state().unwrap().unwrap();
         assert_eq!(loaded.pending_executions.len(), 1);
@@ -185,8 +196,12 @@ mod tests {
         let _ = std::fs::create_dir_all(&dir);
 
         let recovery = CrashRecovery::new(dir.clone());
-        recovery.create_checkpoint("exec-1", 3, serde_json::json!({})).unwrap();
-        recovery.create_checkpoint("exec-1", 7, serde_json::json!({"updated": true})).unwrap();
+        recovery
+            .create_checkpoint("exec-1", 3, serde_json::json!({}))
+            .unwrap();
+        recovery
+            .create_checkpoint("exec-1", 7, serde_json::json!({"updated": true}))
+            .unwrap();
 
         let loaded = recovery.load_state().unwrap().unwrap();
         assert_eq!(loaded.pending_executions.len(), 1);
@@ -204,8 +219,12 @@ mod tests {
         let empty = recovery.get_resumable_executions();
         assert!(empty.is_empty());
 
-        recovery.create_checkpoint("exec-1", 2, serde_json::json!({})).unwrap();
-        recovery.create_checkpoint("exec-2", 5, serde_json::json!({})).unwrap();
+        recovery
+            .create_checkpoint("exec-1", 2, serde_json::json!({}))
+            .unwrap();
+        recovery
+            .create_checkpoint("exec-2", 5, serde_json::json!({}))
+            .unwrap();
 
         let resumable = recovery.get_resumable_executions();
         assert_eq!(resumable.len(), 2);

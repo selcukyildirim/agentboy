@@ -96,9 +96,12 @@ impl DocumentParser for CsvParser {
     }
 
     async fn parse(&self, content: &[u8], filename: &str) -> AppResult<ParsedDocument> {
-        let delimiter = if filename.ends_with(".tsv") { b'\t' } else { b',' };
-        let spreadsheet =
-            spreadsheet_engine::read_csv_with_delimiter(content, delimiter)?;
+        let delimiter = if filename.ends_with(".tsv") {
+            b'\t'
+        } else {
+            b','
+        };
+        let spreadsheet = spreadsheet_engine::read_csv_with_delimiter(content, delimiter)?;
         let text = String::from_utf8_lossy(content).to_string();
 
         let tables: Vec<Table> = spreadsheet
@@ -473,7 +476,10 @@ mod tests {
         assert_eq!(AutoParser::detect_type("doc.json"), DocumentType::Json);
         assert_eq!(AutoParser::detect_type("doc.md"), DocumentType::Markdown);
         assert_eq!(AutoParser::detect_type("doc.txt"), DocumentType::Txt);
-        assert_eq!(AutoParser::detect_type("doc.unknown"), DocumentType::Unknown);
+        assert_eq!(
+            AutoParser::detect_type("doc.unknown"),
+            DocumentType::Unknown
+        );
     }
 
     #[tokio::test]

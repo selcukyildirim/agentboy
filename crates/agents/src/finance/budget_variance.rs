@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
@@ -113,8 +115,14 @@ impl Agent for BudgetVarianceAgent {
              Category Breakdown:\n{}\n\n\
              Material Deviations:\n{}\n\n\
              Provide analysis of key variances and recommended actions.",
-            total_budget, total_actual, total_variance,
-            if total_budget != 0.0 { total_variance / total_budget.abs() * 100.0 } else { 0.0 },
+            total_budget,
+            total_actual,
+            total_variance,
+            if total_budget != 0.0 {
+                total_variance / total_budget.abs() * 100.0
+            } else {
+                0.0
+            },
             variances.len(),
             threshold * 100.0,
             material_deviations.len(),

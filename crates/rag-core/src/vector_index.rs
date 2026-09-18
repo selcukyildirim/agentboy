@@ -36,18 +36,14 @@ impl VectorIndex {
 
         scores
             .into_iter()
-            .filter_map(|(id, score)| {
-                self.chunk_map.get(&id).map(|chunk| (chunk.clone(), score))
-            })
+            .filter_map(|(id, score)| self.chunk_map.get(&id).map(|chunk| (chunk.clone(), score)))
             .collect()
     }
 
     pub fn delete_by_document(&mut self, document_id: &str) -> usize {
         let initial = self.vectors.len();
-        self.vectors
-            .retain(|(id, _)| !id.starts_with(document_id));
-        self.chunk_map
-            .retain(|id, _| !id.starts_with(document_id));
+        self.vectors.retain(|(id, _)| !id.starts_with(document_id));
+        self.chunk_map.retain(|id, _| !id.starts_with(document_id));
         initial - self.vectors.len()
     }
 

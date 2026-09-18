@@ -71,9 +71,7 @@ impl BM25Retriever {
 
         let mut results: Vec<(Chunk, f32)> = scores
             .into_iter()
-            .filter_map(|(id, score)| {
-                self.chunk_map.get(&id).map(|c| (c.clone(), score))
-            })
+            .filter_map(|(id, score)| self.chunk_map.get(&id).map(|c| (c.clone(), score)))
             .collect();
         results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         results.truncate(top_k);

@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
@@ -149,7 +151,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response("Journal entries are balanced."))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            "Journal entries are balanced.",
+        ))
     }
 
     #[tokio::test]

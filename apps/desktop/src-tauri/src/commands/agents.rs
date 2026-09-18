@@ -1,5 +1,7 @@
 use agent_common::error::{ApiError, ErrorCode};
-use agent_runtime::context::{AgentConfig, AgentContext, DefaultAgentContext, LlmProvider, LlmUsage};
+use agent_runtime::context::{
+    AgentConfig, AgentContext, DefaultAgentContext, LlmProvider, LlmUsage,
+};
 use agent_runtime::manifest::InputField;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -36,9 +38,7 @@ fn to_info(agent: &dyn agent_runtime::agent::Agent) -> AgentInfo {
 }
 
 #[tauri::command]
-pub async fn list_agents(
-    state: tauri::State<'_, AppState>,
-) -> Result<Vec<AgentInfo>, ApiError> {
+pub async fn list_agents(state: tauri::State<'_, AppState>) -> Result<Vec<AgentInfo>, ApiError> {
     let registry = state.registry.read().await;
     Ok(registry
         .list()
@@ -129,7 +129,13 @@ pub async fn execute_agent(
             let ctx = DefaultAgentContext::new(Box::new(DynLlmProvider(provider)), config);
             let raw = state
                 .orchestrator
-                .execute(&state.skills, agent, input.clone(), Some(&ctx), Some(state.audit.as_ref()))
+                .execute(
+                    &state.skills,
+                    agent,
+                    input.clone(),
+                    Some(&ctx),
+                    Some(state.audit.as_ref()),
+                )
                 .await;
             usage = ctx.total_usage();
             run(raw)
@@ -137,14 +143,26 @@ pub async fn execute_agent(
             let ctx = DefaultAgentContext::new(Box::new(NoOpLlmProvider), config);
             let raw = state
                 .orchestrator
-                .execute(&state.skills, agent, input.clone(), Some(&ctx), Some(state.audit.as_ref()))
+                .execute(
+                    &state.skills,
+                    agent,
+                    input.clone(),
+                    Some(&ctx),
+                    Some(state.audit.as_ref()),
+                )
                 .await;
             usage = ctx.total_usage();
             run(raw)
         } else {
             let raw = state
                 .orchestrator
-                .execute(&state.skills, agent, input.clone(), None, Some(state.audit.as_ref()))
+                .execute(
+                    &state.skills,
+                    agent,
+                    input.clone(),
+                    None,
+                    Some(state.audit.as_ref()),
+                )
                 .await;
             run(raw)
         };
@@ -167,10 +185,7 @@ pub async fn execute_agent(
     let steps: Vec<executions::ExecutionStep> = orch_steps
         .iter()
         .map(|s| {
-            let failed = matches!(
-                s.state,
-                agent_runtime::state::ExecutionState::Failed { .. }
-            );
+            let failed = matches!(s.state, agent_runtime::state::ExecutionState::Failed { .. });
             executions::ExecutionStep {
                 step_number: s.step_number,
                 step_type: format!("{:?}", s.state),
@@ -181,7 +196,11 @@ pub async fn execute_agent(
         })
         .collect();
 
-    let status = if outcome.is_ok() { "completed" } else { "failed" };
+    let status = if outcome.is_ok() {
+        "completed"
+    } else {
+        "failed"
+    };
     let execution = executions::Execution {
         id: execution_id.clone(),
         agent_id: agent_id.clone(),

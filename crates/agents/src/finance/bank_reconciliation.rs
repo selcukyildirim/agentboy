@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
@@ -57,9 +59,9 @@ impl Agent for BankReconciliationAgent {
         input: serde_json::Value,
         ctx: &dyn AgentContext,
     ) -> AppResult<serde_json::Value> {
-        let bank_csv = input["bank_statement"]
-            .as_str()
-            .ok_or_else(|| AppError::Validation("Missing 'bank_statement' CSV string".to_string()))?;
+        let bank_csv = input["bank_statement"].as_str().ok_or_else(|| {
+            AppError::Validation("Missing 'bank_statement' CSV string".to_string())
+        })?;
         let ledger_csv = input["ledger"]
             .as_str()
             .ok_or_else(|| AppError::Validation("Missing 'ledger' CSV string".to_string()))?;
@@ -117,8 +119,14 @@ impl Agent for BankReconciliationAgent {
             }
         }
 
-        let total_bank: f64 = bank_records.iter().map(|r| csv_util::record_get_f64(r, "amount")).sum();
-        let total_ledger: f64 = ledger_records.iter().map(|r| csv_util::record_get_f64(r, "amount")).sum();
+        let total_bank: f64 = bank_records
+            .iter()
+            .map(|r| csv_util::record_get_f64(r, "amount"))
+            .sum();
+        let total_ledger: f64 = ledger_records
+            .iter()
+            .map(|r| csv_util::record_get_f64(r, "amount"))
+            .sum();
         let difference = total_bank - total_ledger;
 
         let system_prompt = "You are a financial reconciliation expert. Analyze the bank reconciliation results and provide insights on discrepancies, potential causes, and recommended actions. Be concise and professional.";
@@ -134,8 +142,10 @@ impl Agent for BankReconciliationAgent {
              Unmatched Bank Records: {}\n\
              Unmatched Ledger Records: {}\n\n\
              Provide a brief analysis of the reconciliation status and any concerns.",
-            bank_records.len(), total_bank,
-            ledger_records.len(), total_ledger,
+            bank_records.len(),
+            total_bank,
+            ledger_records.len(),
+            total_ledger,
             difference,
             matched.len(),
             unmatched_bank.len(),

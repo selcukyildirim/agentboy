@@ -158,7 +158,11 @@ mod tests {
     #[test]
     fn test_state_transitions() {
         assert!(ExecutionState::Pending.can_transition_to(&ExecutionState::Planning));
-        assert!(ExecutionState::Planning.can_transition_to(&ExecutionState::ExecutingTool { tool_id: "test".to_string() }));
+        assert!(
+            ExecutionState::Planning.can_transition_to(&ExecutionState::ExecutingTool {
+                tool_id: "test".to_string()
+            })
+        );
         assert!(!ExecutionState::Pending.can_transition_to(&ExecutionState::Completed));
     }
 

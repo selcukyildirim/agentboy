@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::content_hash::content_hash;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CachedLlmResult {

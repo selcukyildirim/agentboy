@@ -1,8 +1,8 @@
-use async_trait::async_trait;
+use crate::manifest::ToolManifest;
+use crate::tool::Tool;
 use agent_common::error::{AppError, AppResult};
 use agent_common::types::ToolRisk;
-use crate::tool::Tool;
-use crate::manifest::ToolManifest;
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,7 +47,11 @@ impl XlsxEngine {
         Ok(SpreadsheetData { sheets })
     }
 
-    pub fn merge(&self, data1: &SpreadsheetData, data2: &SpreadsheetData) -> AppResult<SpreadsheetData> {
+    pub fn merge(
+        &self,
+        data1: &SpreadsheetData,
+        data2: &SpreadsheetData,
+    ) -> AppResult<SpreadsheetData> {
         let mut merged_sheets = data1.sheets.clone();
 
         for sheet2 in &data2.sheets {
@@ -72,11 +76,10 @@ impl XlsxEngine {
                 .iter()
                 .enumerate()
                 .filter(|(i, _h)| {
-                    sheet.rows.iter().all(|row| {
-                        row.get(*i)
-                            .and_then(|v| v.parse::<f64>().ok())
-                            .is_some()
-                    })
+                    sheet
+                        .rows
+                        .iter()
+                        .all(|row| row.get(*i).and_then(|v| v.parse::<f64>().ok()).is_some())
                 })
                 .map(|(i, _)| i)
                 .collect();

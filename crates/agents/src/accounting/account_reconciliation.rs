@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
@@ -63,11 +65,20 @@ impl Agent for AccountReconciliationAgent {
         let sl_entries = csv_util::parse_csv_to_maps(sl_csv)?;
 
         if csv_util::all_empty(&gl_entries) && csv_util::all_empty(&sl_entries) {
-            return Ok(csv_util::empty_response("account.reconciliation", &["gl_entries", "subledger"]));
+            return Ok(csv_util::empty_response(
+                "account.reconciliation",
+                &["gl_entries", "subledger"],
+            ));
         }
 
-        let gl_total: f64 = gl_entries.iter().map(|r| csv_util::record_get_f64(r, "amount")).sum();
-        let sl_total: f64 = sl_entries.iter().map(|r| csv_util::record_get_f64(r, "amount")).sum();
+        let gl_total: f64 = gl_entries
+            .iter()
+            .map(|r| csv_util::record_get_f64(r, "amount"))
+            .sum();
+        let sl_total: f64 = sl_entries
+            .iter()
+            .map(|r| csv_util::record_get_f64(r, "amount"))
+            .sum();
         let difference = gl_total - sl_total;
 
         let mut matched = Vec::new();
@@ -143,7 +154,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response("Reconciliation complete. Minor difference in one entry."))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            "Reconciliation complete. Minor difference in one entry.",
+        ))
     }
 
     #[tokio::test]

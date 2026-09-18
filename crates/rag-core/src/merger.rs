@@ -19,7 +19,8 @@ impl RetrievalMerger {
         bm25_results: Vec<(Chunk, f32)>,
         top_k: usize,
     ) -> Vec<(Chunk, f32)> {
-        let mut scores: std::collections::HashMap<String, (Chunk, f32)> = std::collections::HashMap::new();
+        let mut scores: std::collections::HashMap<String, (Chunk, f32)> =
+            std::collections::HashMap::new();
 
         for (chunk, score) in vector_results {
             let entry = scores

@@ -1,14 +1,18 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
 pub struct EmployeeEngagementAgent;
 
 impl EmployeeEngagementAgent {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[async_trait::async_trait]
@@ -33,46 +37,103 @@ impl Agent for EmployeeEngagementAgent {
         }
     }
 
-    fn supports_context(&self) -> bool { true }
+    fn supports_context(&self) -> bool {
+        true
+    }
 
-    async fn execute_with_context(&self, input: serde_json::Value, ctx: &dyn AgentContext) -> AppResult<serde_json::Value> {
+    async fn execute_with_context(
+        &self,
+        input: serde_json::Value,
+        ctx: &dyn AgentContext,
+    ) -> AppResult<serde_json::Value> {
         let surveys_csv = input["surveys"]
             .as_str()
             .ok_or_else(|| AppError::Validation("Missing 'surveys' CSV".to_string()))?;
 
         let surveys = csv_util::parse_csv_to_maps(surveys_csv)?;
         if surveys.is_empty() {
-            return Err(AppError::Validation("No survey responses found".to_string()));
+            return Err(AppError::Validation(
+                "No survey responses found".to_string(),
+            ));
         }
 
         let by_dept = csv_util::group_by(&surveys, "department");
 
-        let mut dept_scores: Vec<serde_json::Value> = by_dept.iter().map(|(dept, responses)| {
-            let overall: Vec<f64> = responses.iter().filter_map(|r| r.get("overall_score").and_then(|v| v.parse::<f64>().ok())).collect();
-            let worklife: Vec<f64> = responses.iter().filter_map(|r| r.get("work_life_balance").and_then(|v| v.parse::<f64>().ok())).collect();
-            let growth: Vec<f64> = responses.iter().filter_map(|r| r.get("growth_opportunity").and_then(|v| v.parse::<f64>().ok())).collect();
-            let management: Vec<f64> = responses.iter().filter_map(|r| r.get("management_score").and_then(|v| v.parse::<f64>().ok())).collect();
+        let mut dept_scores: Vec<serde_json::Value> = by_dept
+            .iter()
+            .map(|(dept, responses)| {
+                let overall: Vec<f64> = responses
+                    .iter()
+                    .filter_map(|r| r.get("overall_score").and_then(|v| v.parse::<f64>().ok()))
+                    .collect();
+                let worklife: Vec<f64> = responses
+                    .iter()
+                    .filter_map(|r| {
+                        r.get("work_life_balance")
+                            .and_then(|v| v.parse::<f64>().ok())
+                    })
+                    .collect();
+                let growth: Vec<f64> = responses
+                    .iter()
+                    .filter_map(|r| {
+                        r.get("growth_opportunity")
+                            .and_then(|v| v.parse::<f64>().ok())
+                    })
+                    .collect();
+                let management: Vec<f64> = responses
+                    .iter()
+                    .filter_map(|r| {
+                        r.get("management_score")
+                            .and_then(|v| v.parse::<f64>().ok())
+                    })
+                    .collect();
 
-            let avg = |vals: &[f64]| if !vals.is_empty() { vals.iter().sum::<f64>() / vals.len() as f64 } else { 0.0 };
+                let avg = |vals: &[f64]| {
+                    if !vals.is_empty() {
+                        vals.iter().sum::<f64>() / vals.len() as f64
+                    } else {
+                        0.0
+                    }
+                };
 
-            let overall_avg = avg(&overall);
-            let engagement_level = if overall_avg >= 4.0 { "high" } else if overall_avg >= 3.0 { "moderate" } else { "low" };
+                let overall_avg = avg(&overall);
+                let engagement_level = if overall_avg >= 4.0 {
+                    "high"
+                } else if overall_avg >= 3.0 {
+                    "moderate"
+                } else {
+                    "low"
+                };
 
-            serde_json::json!({
-                "department": dept,
-                "response_count": responses.len(),
-                "overall_score": overall_avg,
-                "work_life_balance": avg(&worklife),
-                "growth_opportunity": avg(&growth),
-                "management_score": avg(&management),
-                "engagement_level": engagement_level,
+                serde_json::json!({
+                    "department": dept,
+                    "response_count": responses.len(),
+                    "overall_score": overall_avg,
+                    "work_life_balance": avg(&worklife),
+                    "growth_opportunity": avg(&growth),
+                    "management_score": avg(&management),
+                    "engagement_level": engagement_level,
+                })
             })
-        }).collect();
+            .collect();
 
-        dept_scores.sort_by(|a, b| a["overall_score"].as_f64().unwrap_or(0.0).partial_cmp(&b["overall_score"].as_f64().unwrap_or(0.0)).unwrap_or(std::cmp::Ordering::Equal));
+        dept_scores.sort_by(|a, b| {
+            a["overall_score"]
+                .as_f64()
+                .unwrap_or(0.0)
+                .partial_cmp(&b["overall_score"].as_f64().unwrap_or(0.0))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
-        let all_overall: Vec<f64> = surveys.iter().filter_map(|r| r.get("overall_score").and_then(|v| v.parse::<f64>().ok())).collect();
-        let company_avg = if !all_overall.is_empty() { all_overall.iter().sum::<f64>() / all_overall.len() as f64 } else { 0.0 };
+        let all_overall: Vec<f64> = surveys
+            .iter()
+            .filter_map(|r| r.get("overall_score").and_then(|v| v.parse::<f64>().ok()))
+            .collect();
+        let company_avg = if !all_overall.is_empty() {
+            all_overall.iter().sum::<f64>() / all_overall.len() as f64
+        } else {
+            0.0
+        };
 
         let system_prompt = "You are an employee engagement analyst. Analyze survey results and recommend engagement improvements. Be concise.";
         let user_prompt = format!(
@@ -90,7 +151,11 @@ impl Agent for EmployeeEngagementAgent {
     }
 }
 
-impl Default for EmployeeEngagementAgent { fn default() -> Self { Self::new() } }
+impl Default for EmployeeEngagementAgent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -98,7 +163,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response("Engineering has lowest engagement. Focus on work-life balance."))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            "Engineering has lowest engagement. Focus on work-life balance.",
+        ))
     }
 
     #[tokio::test]
@@ -107,7 +174,10 @@ mod tests {
         let input = serde_json::json!({
             "surveys": "department,overall_score,work_life_balance,growth_opportunity,management_score\nEng,3.0,2.5,3.5,3.0\nEng,4.0,3.5,4.0,4.0\nSales,4.5,4.0,4.0,4.5"
         });
-        let result = EmployeeEngagementAgent::new().execute_with_context(input, &ctx).await.unwrap();
+        let result = EmployeeEngagementAgent::new()
+            .execute_with_context(input, &ctx)
+            .await
+            .unwrap();
         assert_eq!(result["summary"]["total_responses"], 3);
         assert!(result["summary"]["company_avg_score"].as_f64().unwrap() > 0.0);
     }
@@ -118,7 +188,10 @@ mod tests {
         let input = serde_json::json!({
             "surveys": "department,overall_score,work_life_balance,growth_opportunity,management_score\nA,4.5,4,4,4\nB,2.5,2,2,2"
         });
-        let result = EmployeeEngagementAgent::new().execute_with_context(input, &ctx).await.unwrap();
+        let result = EmployeeEngagementAgent::new()
+            .execute_with_context(input, &ctx)
+            .await
+            .unwrap();
         let depts = result["departments"].as_array().unwrap();
         assert_eq!(depts[0]["engagement_level"], "low");
         assert_eq!(depts[1]["engagement_level"], "high");
@@ -127,7 +200,10 @@ mod tests {
     #[tokio::test]
     async fn test_empty() {
         let ctx = make_ctx();
-        assert!(EmployeeEngagementAgent::new().execute_with_context(serde_json::json!({ "surveys": "" }), &ctx).await.is_err());
+        assert!(EmployeeEngagementAgent::new()
+            .execute_with_context(serde_json::json!({ "surveys": "" }), &ctx)
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -136,7 +212,10 @@ mod tests {
         let input = serde_json::json!({
             "surveys": "department,overall_score,work_life_balance,growth_opportunity,management_score\nA,3.5,3,4,3.5"
         });
-        let result = EmployeeEngagementAgent::new().execute_with_context(input, &ctx).await.unwrap();
+        let result = EmployeeEngagementAgent::new()
+            .execute_with_context(input, &ctx)
+            .await
+            .unwrap();
         assert!(result["llm_analysis"].as_str().is_some());
     }
 

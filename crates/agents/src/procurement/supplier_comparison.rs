@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 pub struct SupplierComparisonAgent;
 
@@ -19,9 +21,14 @@ impl Agent for SupplierComparisonAgent {
             version: "2.0.0".to_string(),
             name: "Supplier Comparison".to_string(),
             department: "Procurement".to_string(),
-            description: "Weighted multi-criteria supplier comparison with LLM strategic analysis".to_string(),
+            description: "Weighted multi-criteria supplier comparison with LLM strategic analysis"
+                .to_string(),
             tier: AgentTier::Free,
-            skills: vec!["spreadsheet.parse".to_string(), "spreadsheet.compare".to_string(), "llm.analysis".to_string()],
+            skills: vec![
+                "spreadsheet.parse".to_string(),
+                "spreadsheet.compare".to_string(),
+                "llm.analysis".to_string(),
+            ],
             permissions: AgentPermissions {
                 filesystem_read: true,
                 filesystem_write: false,
@@ -35,8 +42,11 @@ impl Agent for SupplierComparisonAgent {
             output_schema: None,
             max_cost_usd: None,
             input_schema: vec![
-                InputField::new("suppliers", "Suppliers (JSON)", InputKind::Json, true).with_example("supplier,unit_price,lead_time_days,quality_score\nAcme,25,7,95"),
-                InputField::new("weights", "Weights (JSON)", InputKind::Json, false).with_example("{\"price\":0.4,\"quality\":0.3,\"delivery\":0.2,\"reliability\":0.1}"),
+                InputField::new("suppliers", "Suppliers (JSON)", InputKind::Json, true)
+                    .with_example("supplier,unit_price,lead_time_days,quality_score\nAcme,25,7,95"),
+                InputField::new("weights", "Weights (JSON)", InputKind::Json, false).with_example(
+                    "{\"price\":0.4,\"quality\":0.3,\"delivery\":0.2,\"reliability\":0.1}",
+                ),
             ],
         }
     }
@@ -76,7 +86,13 @@ impl Agent for SupplierComparisonAgent {
                 + ds * w.get("delivery").and_then(|v| v.as_f64()).unwrap_or(0.2)
                 + rs * w.get("reliability").and_then(|v| v.as_f64()).unwrap_or(0.1);
 
-            let rec = if weighted >= 0.7 { "recommended" } else if weighted >= 0.4 { "consider" } else { "not_recommended" };
+            let rec = if weighted >= 0.7 {
+                "recommended"
+            } else if weighted >= 0.4 {
+                "consider"
+            } else {
+                "not_recommended"
+            };
 
             scored.push(serde_json::json!({
                 "name": name,
@@ -90,7 +106,9 @@ impl Agent for SupplierComparisonAgent {
         }
 
         scored.sort_by(|a, b| {
-            b["weighted_score"].as_f64().unwrap_or(0.0)
+            b["weighted_score"]
+                .as_f64()
+                .unwrap_or(0.0)
                 .partial_cmp(&a["weighted_score"].as_f64().unwrap_or(0.0))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
@@ -128,7 +146,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response("Supplier A is best overall."))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            "Supplier A is best overall.",
+        ))
     }
 
     #[tokio::test]

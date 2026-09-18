@@ -165,7 +165,12 @@ mod tests {
     #[test]
     fn test_context_builder() {
         let mut builder = DecisionContextBuilder::new(DecisionType::Procurement);
-        builder.add_fact("vendor_quotes", serde_json::json!([{"vendor": "A", "price": 100}]), "doc1", 0.9);
+        builder.add_fact(
+            "vendor_quotes",
+            serde_json::json!([{"vendor": "A", "price": 100}]),
+            "doc1",
+            0.9,
+        );
         builder.add_fact("budget_limit", serde_json::json!(500), "user", 1.0);
 
         let context = builder.build();
@@ -176,7 +181,12 @@ mod tests {
     #[test]
     fn test_missing_info_detector() {
         let mut builder = DecisionContextBuilder::new(DecisionType::Procurement);
-        builder.add_fact("vendor_quotes", serde_json::json!([{"vendor": "A"}]), "doc1", 0.9);
+        builder.add_fact(
+            "vendor_quotes",
+            serde_json::json!([{"vendor": "A"}]),
+            "doc1",
+            0.9,
+        );
         builder.add_fact("budget_limit", serde_json::json!(500), "user", 1.0);
 
         let context = builder.build();

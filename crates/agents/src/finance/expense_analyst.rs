@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
@@ -113,7 +115,11 @@ impl Agent for ExpenseAnalystAgent {
              Anomalies:\n{}\n\n\
              Potential Duplicates:\n{}\n\n\
              Provide analysis of spending patterns and recommendations.",
-            expenses.len(), total_amount, avg, std_dev, p95,
+            expenses.len(),
+            total_amount,
+            avg,
+            std_dev,
+            p95,
             anomalies.len(),
             duplicates.len(),
             serde_json::to_string_pretty(&category_summary).unwrap_or_default(),
@@ -153,7 +159,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response("Food expenses are high. Consider budgeting."))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            "Food expenses are high. Consider budgeting.",
+        ))
     }
 
     #[tokio::test]

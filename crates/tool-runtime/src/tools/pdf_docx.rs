@@ -1,8 +1,8 @@
-use async_trait::async_trait;
+use crate::manifest::ToolManifest;
+use crate::tool::Tool;
 use agent_common::error::{AppError, AppResult};
 use agent_common::types::ToolRisk;
-use crate::tool::Tool;
-use crate::manifest::ToolManifest;
+use async_trait::async_trait;
 
 pub struct PdfParser;
 
@@ -52,21 +52,22 @@ impl Tool for PdfParser {
 
         match operation {
             "extract_text" => {
-                let _content = input["content"]
-                    .as_str()
-                    .ok_or_else(|| AppError::Validation("Missing 'content' field (base64)".to_string()))?;
+                let _content = input["content"].as_str().ok_or_else(|| {
+                    AppError::Validation("Missing 'content' field (base64)".to_string())
+                })?;
                 Err(AppError::ToolExecutionFailed {
                     tool: "pdf.extract".to_string(),
                     reason: "PDF parsing not yet implemented".to_string(),
                 })
             }
-            "extract_metadata" => {
-                Err(AppError::ToolExecutionFailed {
-                    tool: "pdf.metadata".to_string(),
-                    reason: "PDF metadata not yet implemented".to_string(),
-                })
-            }
-            _ => Err(AppError::Validation(format!("Unknown operation: {}", operation))),
+            "extract_metadata" => Err(AppError::ToolExecutionFailed {
+                tool: "pdf.metadata".to_string(),
+                reason: "PDF metadata not yet implemented".to_string(),
+            }),
+            _ => Err(AppError::Validation(format!(
+                "Unknown operation: {}",
+                operation
+            ))),
         }
     }
 }

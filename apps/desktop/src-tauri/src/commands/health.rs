@@ -1,5 +1,5 @@
-use hardening::metrics::Metrics;
 use hardening::health::{HealthChecker, HealthStatus};
+use hardening::metrics::Metrics;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
@@ -102,17 +102,30 @@ pub fn get_metrics() -> MetricsReport {
     let hits = m.get_counter("cache_hits");
     let misses = m.get_counter("cache_misses");
     let total = hits + misses;
-    let hit_rate = if total > 0 { hits as f64 / total as f64 } else { 0.0 };
+    let hit_rate = if total > 0 {
+        hits as f64 / total as f64
+    } else {
+        0.0
+    };
 
     let mut counters = HashMap::new();
-    counters.insert("agent_executions".to_string(), m.get_counter("agent_executions"));
-    counters.insert("documents_indexed".to_string(), m.get_counter("documents_indexed"));
+    counters.insert(
+        "agent_executions".to_string(),
+        m.get_counter("agent_executions"),
+    );
+    counters.insert(
+        "documents_indexed".to_string(),
+        m.get_counter("documents_indexed"),
+    );
     counters.insert("cache_hits".to_string(), hits);
     counters.insert("cache_misses".to_string(), misses);
 
     let mut gauges = HashMap::new();
     gauges.insert("cache_hit_rate".to_string(), hit_rate);
-    gauges.insert("active_executions".to_string(), m.get_gauge("active_executions"));
+    gauges.insert(
+        "active_executions".to_string(),
+        m.get_gauge("active_executions"),
+    );
 
     MetricsReport { counters, gauges }
 }

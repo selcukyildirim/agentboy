@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
@@ -130,7 +132,11 @@ impl Agent for RevenueRecognitionAgent {
              Monthly Trend:\n{}\n\n\
              AR Aging:\n{}\n\n\
              Provide revenue quality analysis and recognition concerns.",
-            invoices.len(), total_revenue, earned, deferred, avg_invoice,
+            invoices.len(),
+            total_revenue,
+            earned,
+            deferred,
+            avg_invoice,
             serde_json::to_string_pretty(&by_customer).unwrap_or_default(),
             serde_json::to_string_pretty(&by_product).unwrap_or_default(),
             serde_json::to_string_pretty(&revenue_by_month).unwrap_or_default(),
@@ -169,7 +175,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response("Revenue recognition looks healthy. 80% earned, 20% deferred."))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            "Revenue recognition looks healthy. 80% earned, 20% deferred.",
+        ))
     }
 
     #[tokio::test]

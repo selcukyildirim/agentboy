@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 pub struct InvoiceControlAgent;
 
@@ -101,7 +103,10 @@ impl Agent for InvoiceControlAgent {
         }
 
         if let Some(receipt_data) = receipt {
-            let receipt_amount = receipt_data.get("amount").and_then(|v| v.as_str()).unwrap_or("0");
+            let receipt_amount = receipt_data
+                .get("amount")
+                .and_then(|v| v.as_str())
+                .unwrap_or("0");
             if inv_total != receipt_amount {
                 warnings.push(serde_json::json!({
                     "type": "receipt_amount_mismatch",
@@ -110,7 +115,10 @@ impl Agent for InvoiceControlAgent {
                     "receipt_amount": receipt_amount,
                 }));
             }
-            let receipt_date = receipt_data.get("date").and_then(|v| v.as_str()).unwrap_or("");
+            let receipt_date = receipt_data
+                .get("date")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             if !inv_date.is_empty() && !receipt_date.is_empty() && inv_date != receipt_date {
                 warnings.push(serde_json::json!({
                     "type": "date_mismatch",
@@ -165,7 +173,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response("Three-way match looks good."))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            "Three-way match looks good.",
+        ))
     }
 
     #[tokio::test]

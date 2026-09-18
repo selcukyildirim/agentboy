@@ -175,15 +175,21 @@ pub fn build_registry_with_tools(tools: Arc<ToolRegistry>) -> SkillRegistry {
 
     // document.* → document-parser
     registry.register(Box::new(FnSkill::new(
-        manifest("document.parse", "Document Parse", "Parse a document into sections/tables"),
+        manifest(
+            "document.parse",
+            "Document Parse",
+            "Parse a document into sections/tables",
+        ),
         |input| {
             Box::pin(async move {
                 use document_parser::parser::{extract_text, AutoParser, DocumentParser};
-                let content = input["content"]
-                    .as_str()
-                    .ok_or_else(|| agent_common::error::AppError::Validation("Missing 'content'".into()))?;
+                let content = input["content"].as_str().ok_or_else(|| {
+                    agent_common::error::AppError::Validation("Missing 'content'".into())
+                })?;
                 let filename = input["filename"].as_str().unwrap_or("document.txt");
-                let doc = AutoParser::new().parse(content.as_bytes(), filename).await?;
+                let doc = AutoParser::new()
+                    .parse(content.as_bytes(), filename)
+                    .await?;
                 Ok(serde_json::json!({
                     "doc_type": format!("{:?}", doc.doc_type),
                     "word_count": doc.metadata.word_count,
@@ -195,15 +201,21 @@ pub fn build_registry_with_tools(tools: Arc<ToolRegistry>) -> SkillRegistry {
         },
     )));
     registry.register(Box::new(FnSkill::new(
-        manifest("document.extract", "Document Extract", "Extract plain text from a document"),
+        manifest(
+            "document.extract",
+            "Document Extract",
+            "Extract plain text from a document",
+        ),
         |input| {
             Box::pin(async move {
                 use document_parser::parser::{extract_text, AutoParser, DocumentParser};
-                let content = input["content"]
-                    .as_str()
-                    .ok_or_else(|| agent_common::error::AppError::Validation("Missing 'content'".into()))?;
+                let content = input["content"].as_str().ok_or_else(|| {
+                    agent_common::error::AppError::Validation("Missing 'content'".into())
+                })?;
                 let filename = input["filename"].as_str().unwrap_or("document.txt");
-                let doc = AutoParser::new().parse(content.as_bytes(), filename).await?;
+                let doc = AutoParser::new()
+                    .parse(content.as_bytes(), filename)
+                    .await?;
                 Ok(serde_json::json!({ "text": extract_text(&doc) }))
             })
         },
@@ -238,7 +250,11 @@ pub fn build_registry_with_tools(tools: Arc<ToolRegistry>) -> SkillRegistry {
 
     // decision.analyze → deterministic scaffold (upgraded in L4)
     registry.register(Box::new(FnSkill::new(
-        manifest("decision.analyze", "Decision Analyze", "Score options against weighted criteria"),
+        manifest(
+            "decision.analyze",
+            "Decision Analyze",
+            "Score options against weighted criteria",
+        ),
         |input| {
             Box::pin(async move {
                 let options = input["options"].as_array().cloned().unwrap_or_default();

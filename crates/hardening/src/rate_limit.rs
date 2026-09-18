@@ -48,7 +48,8 @@ impl RateLimiter {
     }
 
     pub fn add_limit(&mut self, key: &str, capacity: u32, refill_rate: f64) {
-        self.limits.insert(key.to_string(), TokenBucket::new(capacity, refill_rate));
+        self.limits
+            .insert(key.to_string(), TokenBucket::new(capacity, refill_rate));
     }
 
     pub fn try_acquire(&mut self, key: &str, tokens: u32) -> bool {
@@ -75,8 +76,8 @@ impl Default for RateLimiter {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
     use super::*;
+    use std::time::Duration;
 
     #[test]
     fn test_rate_limiter() {

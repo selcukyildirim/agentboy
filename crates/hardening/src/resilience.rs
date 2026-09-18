@@ -28,7 +28,8 @@ impl RetryPolicy {
     }
 
     pub fn delay_for_attempt(&self, attempt: u32) -> Duration {
-        let delay_ms = self.base_delay.as_millis() as f64 * self.backoff_multiplier.powi(attempt as i32);
+        let delay_ms =
+            self.base_delay.as_millis() as f64 * self.backoff_multiplier.powi(attempt as i32);
         let capped = delay_ms.min(self.max_delay.as_millis() as f64);
         Duration::from_millis(capped as u64)
     }
@@ -50,7 +51,9 @@ impl Default for RetryPolicy {
 
 pub enum CircuitState {
     Closed,
-    Open { opened_at: chrono::DateTime<chrono::Utc> },
+    Open {
+        opened_at: chrono::DateTime<chrono::Utc>,
+    },
     HalfOpen,
 }
 
@@ -172,8 +175,8 @@ mod tests {
 
     #[test]
     fn test_retry_policy_max_delay_capped() {
-        let policy = RetryPolicy::new(10, Duration::from_millis(100))
-            .with_max_delay(Duration::from_secs(1));
+        let policy =
+            RetryPolicy::new(10, Duration::from_millis(100)).with_max_delay(Duration::from_secs(1));
         let d10 = policy.delay_for_attempt(10);
 
         assert!(d10 <= Duration::from_secs(1));
@@ -181,8 +184,7 @@ mod tests {
 
     #[test]
     fn test_retry_policy_custom_multiplier() {
-        let policy = RetryPolicy::new(5, Duration::from_millis(100))
-            .with_backoff_multiplier(3.0);
+        let policy = RetryPolicy::new(5, Duration::from_millis(100)).with_backoff_multiplier(3.0);
         let d1 = policy.delay_for_attempt(1);
 
         assert_eq!(d1, Duration::from_millis(300));

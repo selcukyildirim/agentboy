@@ -17,7 +17,8 @@ impl DataClassifier {
         ];
 
         let secret_patterns = vec![
-            Regex::new(r"(?i)(api[_-]?key|secret[_-]?key|access[_-]?token|password)\s*[:=]\s*\S+").unwrap(),
+            Regex::new(r"(?i)(api[_-]?key|secret[_-]?key|access[_-]?token|password)\s*[:=]\s*\S+")
+                .unwrap(),
             Regex::new(r"(?i)(sk-[a-zA-Z0-9]{20,})").unwrap(),
             Regex::new(r"(?i)(ghp_[a-zA-Z0-9]{36})").unwrap(),
             Regex::new(r"(?i)(AKIA[0-9A-Z]{16})").unwrap(),
@@ -50,7 +51,11 @@ impl DataClassifier {
                 found.push(mat.as_str().to_string());
             }
         }
-        if found.is_empty() { None } else { Some(found) }
+        if found.is_empty() {
+            None
+        } else {
+            Some(found)
+        }
     }
 
     pub fn detect_secrets(&self, content: &str) -> Option<Vec<String>> {
@@ -60,7 +65,11 @@ impl DataClassifier {
                 found.push(mat.as_str().to_string());
             }
         }
-        if found.is_empty() { None } else { Some(found) }
+        if found.is_empty() {
+            None
+        } else {
+            Some(found)
+        }
     }
 
     pub fn sanitize(&self, content: &str) -> String {
@@ -71,7 +80,9 @@ impl DataClassifier {
         }
 
         for pattern in &self.secret_patterns {
-            result = pattern.replace_all(&result, "[REDACTED_SECRET]").to_string();
+            result = pattern
+                .replace_all(&result, "[REDACTED_SECRET]")
+                .to_string();
         }
 
         result

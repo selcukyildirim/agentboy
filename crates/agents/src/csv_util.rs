@@ -100,7 +100,10 @@ pub fn parse_f64_locale(s: &str) -> Option<f64> {
             }
         }
         (false, false) => {
-            let clean: String = trimmed.chars().filter(|c| c.is_ascii_digit() || *c == '-').collect();
+            let clean: String = trimmed
+                .chars()
+                .filter(|c| c.is_ascii_digit() || *c == '-')
+                .collect();
             clean.parse::<f64>().ok()
         }
     }
@@ -148,7 +151,10 @@ pub fn record_get_str<'a>(record: &'a HashMap<String, String>, key: &str) -> &'a
     record.get(key).map(|s| s.as_str()).unwrap_or("")
 }
 
-pub fn group_by<'a>(records: &'a [HashMap<String, String>], key: &str) -> HashMap<String, Vec<&'a HashMap<String, String>>> {
+pub fn group_by<'a>(
+    records: &'a [HashMap<String, String>],
+    key: &str,
+) -> HashMap<String, Vec<&'a HashMap<String, String>>> {
     let mut groups: HashMap<String, Vec<&'a HashMap<String, String>>> = HashMap::new();
     for record in records {
         let value = record_get_str(record, key).to_string();
@@ -157,7 +163,11 @@ pub fn group_by<'a>(records: &'a [HashMap<String, String>], key: &str) -> HashMa
     groups
 }
 
-pub fn sum_by(records: &[HashMap<String, String>], group_key: &str, amount_key: &str) -> HashMap<String, f64> {
+pub fn sum_by(
+    records: &[HashMap<String, String>],
+    group_key: &str,
+    amount_key: &str,
+) -> HashMap<String, f64> {
     let mut result = HashMap::new();
     for record in records {
         let group = record_get_str(record, group_key).to_string();
@@ -274,7 +284,8 @@ mod tests {
 
     #[test]
     fn test_detect_duplicates() {
-        let csv = "date,amount,desc\n2024-01-01,100,Lunch\n2024-01-02,200,Dinner\n2024-01-01,100,Lunch\n";
+        let csv =
+            "date,amount,desc\n2024-01-01,100,Lunch\n2024-01-02,200,Dinner\n2024-01-01,100,Lunch\n";
         let records = parse_csv_to_maps(csv).unwrap();
         let dups = detect_duplicates(&records, &["date", "amount", "desc"]);
         assert_eq!(dups.len(), 1);
@@ -363,7 +374,10 @@ mod tests {
     #[test]
     fn test_sanitize_csv_value_injection() {
         assert_eq!(sanitize_csv_value("=SUM(A1:A10)"), "'=SUM(A1:A10)");
-        assert_eq!(sanitize_csv_value("+cmd|'/C calc'!A0"), "'+cmd|'/C calc'!A0");
+        assert_eq!(
+            sanitize_csv_value("+cmd|'/C calc'!A0"),
+            "'+cmd|'/C calc'!A0"
+        );
         assert_eq!(sanitize_csv_value("-1+2"), "'-1+2");
         assert_eq!(sanitize_csv_value("@SUM(A1)"), "'@SUM(A1)");
         assert_eq!(sanitize_csv_value("\t=cmd"), "'=cmd");

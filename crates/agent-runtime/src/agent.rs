@@ -1,9 +1,9 @@
 use crate::context::AgentContext;
 use crate::manifest::{AgentManifest, AgentPermissions, AgentTier};
 use agent_common::error::{AppError, AppResult};
+use async_trait::async_trait;
 use audit_core::event::{AuditEvent, AuditResult};
 use audit_core::store::SqliteAuditStore;
-use async_trait::async_trait;
 use chrono::Utc;
 
 #[async_trait]
@@ -52,32 +52,36 @@ impl AgentExecutor {
 
         if let Err(e) = Self::check_entitlement(&manifest) {
             if let Some(store) = audit_store {
-                let _ = store.record(AuditEvent {
-                    event_id: uuid::Uuid::new_v4(),
-                    execution_id: None,
-                    agent_id: agent_id.clone(),
-                    action: "execute".to_string(),
-                    resource: format!("agent/{}", agent_id),
-                    result: AuditResult::Denied,
-                    details: Some(serde_json::json!({"error": e.to_string()})),
-                    timestamp: Utc::now(),
-                }).await;
+                let _ = store
+                    .record(AuditEvent {
+                        event_id: uuid::Uuid::new_v4(),
+                        execution_id: None,
+                        agent_id: agent_id.clone(),
+                        action: "execute".to_string(),
+                        resource: format!("agent/{}", agent_id),
+                        result: AuditResult::Denied,
+                        details: Some(serde_json::json!({"error": e.to_string()})),
+                        timestamp: Utc::now(),
+                    })
+                    .await;
             }
             return Err(e);
         }
 
         if let Err(e) = Self::check_permissions(&manifest.permissions) {
             if let Some(store) = audit_store {
-                let _ = store.record(AuditEvent {
-                    event_id: uuid::Uuid::new_v4(),
-                    execution_id: None,
-                    agent_id: agent_id.clone(),
-                    action: "execute".to_string(),
-                    resource: format!("agent/{}", agent_id),
-                    result: AuditResult::Denied,
-                    details: Some(serde_json::json!({"error": e.to_string()})),
-                    timestamp: Utc::now(),
-                }).await;
+                let _ = store
+                    .record(AuditEvent {
+                        event_id: uuid::Uuid::new_v4(),
+                        execution_id: None,
+                        agent_id: agent_id.clone(),
+                        action: "execute".to_string(),
+                        resource: format!("agent/{}", agent_id),
+                        result: AuditResult::Denied,
+                        details: Some(serde_json::json!({"error": e.to_string()})),
+                        timestamp: Utc::now(),
+                    })
+                    .await;
             }
             return Err(e);
         }
@@ -88,13 +92,15 @@ impl AgentExecutor {
                     tokio::time::timeout(
                         std::time::Duration::from_secs(timeout_secs),
                         agent.execute_with_context(input, context),
-                    ).await
+                    )
+                    .await
                 }
                 _ => {
                     tokio::time::timeout(
                         std::time::Duration::from_secs(timeout_secs),
                         agent.execute(input),
-                    ).await
+                    )
+                    .await
                 }
             };
 
@@ -106,16 +112,18 @@ impl AgentExecutor {
                         agent_id, timeout_secs
                     ));
                     if let Some(store) = audit_store {
-                        let _ = store.record(AuditEvent {
-                            event_id: uuid::Uuid::new_v4(),
-                            execution_id: None,
-                            agent_id: agent_id.clone(),
-                            action: "execute".to_string(),
-                            resource: format!("agent/{}", agent_id),
-                            result: AuditResult::Failure,
-                            details: Some(serde_json::json!({"error": err.to_string()})),
-                            timestamp: Utc::now(),
-                        }).await;
+                        let _ = store
+                            .record(AuditEvent {
+                                event_id: uuid::Uuid::new_v4(),
+                                execution_id: None,
+                                agent_id: agent_id.clone(),
+                                action: "execute".to_string(),
+                                resource: format!("agent/{}", agent_id),
+                                result: AuditResult::Failure,
+                                details: Some(serde_json::json!({"error": err.to_string()})),
+                                timestamp: Utc::now(),
+                            })
+                            .await;
                     }
                     return Err(err);
                 }
@@ -129,19 +137,23 @@ impl AgentExecutor {
                 AuditResult::Failure
             };
             let details = match &result {
-                Ok(v) => Some(serde_json::json!({"output_preview": v.to_string().chars().take(500).collect::<String>()})),
+                Ok(v) => Some(
+                    serde_json::json!({"output_preview": v.to_string().chars().take(500).collect::<String>()}),
+                ),
                 Err(e) => Some(serde_json::json!({"error": e.to_string()})),
             };
-            let _ = store.record(AuditEvent {
-                event_id: uuid::Uuid::new_v4(),
-                execution_id: None,
-                agent_id: agent_id.clone(),
-                action: "execute".to_string(),
-                resource: format!("agent/{}", agent_id),
-                result: audit_result,
-                details,
-                timestamp: Utc::now(),
-            }).await;
+            let _ = store
+                .record(AuditEvent {
+                    event_id: uuid::Uuid::new_v4(),
+                    execution_id: None,
+                    agent_id: agent_id.clone(),
+                    action: "execute".to_string(),
+                    resource: format!("agent/{}", agent_id),
+                    result: audit_result,
+                    details,
+                    timestamp: Utc::now(),
+                })
+                .await;
         }
 
         result
@@ -256,14 +268,19 @@ mod tests {
     #[tokio::test]
     async fn test_agent_execute() {
         let agent = SimpleAgent;
-        let result = agent.execute(serde_json::json!({"test": true})).await.unwrap();
+        let result = agent
+            .execute(serde_json::json!({"test": true}))
+            .await
+            .unwrap();
         assert_eq!(result["status"], "ok");
     }
 
     #[tokio::test]
     async fn test_agent_executor_run() {
         let agent = SimpleAgent;
-        let result = AgentExecutor::run(&agent, serde_json::json!({"data": 1}), None).await.unwrap();
+        let result = AgentExecutor::run(&agent, serde_json::json!({"data": 1}), None)
+            .await
+            .unwrap();
         assert_eq!(result["status"], "ok");
     }
 
@@ -291,7 +308,9 @@ mod tests {
             serde_json::json!({"data": 1}),
             None,
             Some(&store),
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
         assert_eq!(result["status"], "ok");
 
         let events = store.query("test.simple", 10).await.unwrap();
@@ -303,12 +322,8 @@ mod tests {
     async fn test_audit_trail_denied() {
         let store = SqliteAuditStore::new("sqlite::memory:").await.unwrap();
         let agent = PaidAgent;
-        let result = AgentExecutor::run_with_audit(
-            &agent,
-            serde_json::json!({}),
-            None,
-            Some(&store),
-        ).await;
+        let result =
+            AgentExecutor::run_with_audit(&agent, serde_json::json!({}), None, Some(&store)).await;
         assert!(result.is_err());
 
         let events = store.query("test.paid", 10).await.unwrap();

@@ -1,14 +1,18 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
 pub struct HeadcountPlannerAgent;
 
 impl HeadcountPlannerAgent {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[async_trait::async_trait]
@@ -33,45 +37,81 @@ impl Agent for HeadcountPlannerAgent {
         }
     }
 
-    fn supports_context(&self) -> bool { true }
+    fn supports_context(&self) -> bool {
+        true
+    }
 
-    async fn execute_with_context(&self, input: serde_json::Value, ctx: &dyn AgentContext) -> AppResult<serde_json::Value> {
+    async fn execute_with_context(
+        &self,
+        input: serde_json::Value,
+        ctx: &dyn AgentContext,
+    ) -> AppResult<serde_json::Value> {
         let departments_csv = input["departments"]
             .as_str()
             .ok_or_else(|| AppError::Validation("Missing 'departments' CSV".to_string()))?;
 
         let depts = csv_util::parse_csv_to_maps(departments_csv)?;
         if depts.is_empty() {
-            return Err(AppError::Validation("No department records found".to_string()));
+            return Err(AppError::Validation(
+                "No department records found".to_string(),
+            ));
         }
 
-        let mut dept_plans: Vec<serde_json::Value> = depts.iter().map(|d| {
-            let current = csv_util::record_get_f64(d, "current_headcount") as u64;
-            let target = csv_util::record_get_f64(d, "target_headcount") as u64;
-            let expected_attrition = csv_util::record_get_f64(d, "expected_attrition") as u64;
-            let open_positions = csv_util::record_get_f64(d, "open_positions") as u64;
+        let mut dept_plans: Vec<serde_json::Value> = depts
+            .iter()
+            .map(|d| {
+                let current = csv_util::record_get_f64(d, "current_headcount") as u64;
+                let target = csv_util::record_get_f64(d, "target_headcount") as u64;
+                let expected_attrition = csv_util::record_get_f64(d, "expected_attrition") as u64;
+                let open_positions = csv_util::record_get_f64(d, "open_positions") as u64;
 
-            let gap = if target > current { target - current } else { 0 };
-            let net_hiring = gap + expected_attrition;
-            let urgency = if net_hiring > open_positions { "critical" } else if net_hiring > 0 { "normal" } else { "none" };
+                let gap = if target > current {
+                    target - current
+                } else {
+                    0
+                };
+                let net_hiring = gap + expected_attrition;
+                let urgency = if net_hiring > open_positions {
+                    "critical"
+                } else if net_hiring > 0 {
+                    "normal"
+                } else {
+                    "none"
+                };
 
-            serde_json::json!({
-                "department": csv_util::record_get_str(d, "department"),
-                "current_headcount": current,
-                "target_headcount": target,
-                "expected_attrition": expected_attrition,
-                "open_positions": open_positions,
-                "gap": gap,
-                "net_hiring_needed": net_hiring,
-                "urgency": urgency,
+                serde_json::json!({
+                    "department": csv_util::record_get_str(d, "department"),
+                    "current_headcount": current,
+                    "target_headcount": target,
+                    "expected_attrition": expected_attrition,
+                    "open_positions": open_positions,
+                    "gap": gap,
+                    "net_hiring_needed": net_hiring,
+                    "urgency": urgency,
+                })
             })
-        }).collect();
+            .collect();
 
-        let total_current: u64 = dept_plans.iter().map(|p| p["current_headcount"].as_u64().unwrap_or(0)).sum();
-        let total_hiring: u64 = dept_plans.iter().map(|p| p["net_hiring_needed"].as_u64().unwrap_or(0)).sum();
-        let critical: usize = dept_plans.iter().filter(|p| p["urgency"] == "critical").count();
+        let total_current: u64 = dept_plans
+            .iter()
+            .map(|p| p["current_headcount"].as_u64().unwrap_or(0))
+            .sum();
+        let total_hiring: u64 = dept_plans
+            .iter()
+            .map(|p| p["net_hiring_needed"].as_u64().unwrap_or(0))
+            .sum();
+        let critical: usize = dept_plans
+            .iter()
+            .filter(|p| p["urgency"] == "critical")
+            .count();
 
-        dept_plans.sort_by(|a, b| b["net_hiring_needed"].as_u64().unwrap_or(0).partial_cmp(&a["net_hiring_needed"].as_u64().unwrap_or(0)).unwrap_or(std::cmp::Ordering::Equal));
+        dept_plans.sort_by(|a, b| {
+            b["net_hiring_needed"]
+                .as_u64()
+                .unwrap_or(0)
+                .partial_cmp(&a["net_hiring_needed"].as_u64().unwrap_or(0))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let system_prompt = "You are an HR workforce planner. Analyze headcount gaps and recommend hiring strategy. Be concise.";
         let user_prompt = format!(
@@ -89,7 +129,11 @@ impl Agent for HeadcountPlannerAgent {
     }
 }
 
-impl Default for HeadcountPlannerAgent { fn default() -> Self { Self::new() } }
+impl Default for HeadcountPlannerAgent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -97,7 +141,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response("Engineering has critical hiring gap. Prioritize."))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            "Engineering has critical hiring gap. Prioritize.",
+        ))
     }
 
     #[tokio::test]
@@ -106,7 +152,10 @@ mod tests {
         let input = serde_json::json!({
             "departments": "department,current_headcount,target_headcount,expected_attrition,open_positions\nEngineering,20,25,2,3\nSales,10,10,1,2"
         });
-        let result = HeadcountPlannerAgent::new().execute_with_context(input, &ctx).await.unwrap();
+        let result = HeadcountPlannerAgent::new()
+            .execute_with_context(input, &ctx)
+            .await
+            .unwrap();
         assert_eq!(result["summary"]["total_departments"], 2);
         assert!(result["summary"]["total_hiring_needed"].as_u64().unwrap() > 0);
     }
@@ -117,14 +166,23 @@ mod tests {
         let input = serde_json::json!({
             "departments": "department,current_headcount,target_headcount,expected_attrition,open_positions\nEng,10,20,5,2"
         });
-        let result = HeadcountPlannerAgent::new().execute_with_context(input, &ctx).await.unwrap();
-        assert_eq!(result["departments"].as_array().unwrap()[0]["urgency"], "critical");
+        let result = HeadcountPlannerAgent::new()
+            .execute_with_context(input, &ctx)
+            .await
+            .unwrap();
+        assert_eq!(
+            result["departments"].as_array().unwrap()[0]["urgency"],
+            "critical"
+        );
     }
 
     #[tokio::test]
     async fn test_empty() {
         let ctx = make_ctx();
-        assert!(HeadcountPlannerAgent::new().execute_with_context(serde_json::json!({ "departments": "" }), &ctx).await.is_err());
+        assert!(HeadcountPlannerAgent::new()
+            .execute_with_context(serde_json::json!({ "departments": "" }), &ctx)
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -133,8 +191,14 @@ mod tests {
         let input = serde_json::json!({
             "departments": "department,current_headcount,target_headcount,expected_attrition,open_positions\nA,10,8,0,0"
         });
-        let result = HeadcountPlannerAgent::new().execute_with_context(input, &ctx).await.unwrap();
-        assert_eq!(result["departments"].as_array().unwrap()[0]["urgency"], "none");
+        let result = HeadcountPlannerAgent::new()
+            .execute_with_context(input, &ctx)
+            .await
+            .unwrap();
+        assert_eq!(
+            result["departments"].as_array().unwrap()[0]["urgency"],
+            "none"
+        );
     }
 
     #[tokio::test]
@@ -143,7 +207,10 @@ mod tests {
         let input = serde_json::json!({
             "departments": "department,current_headcount,target_headcount,expected_attrition,open_positions\nA,5,10,1,2"
         });
-        let result = HeadcountPlannerAgent::new().execute_with_context(input, &ctx).await.unwrap();
+        let result = HeadcountPlannerAgent::new()
+            .execute_with_context(input, &ctx)
+            .await
+            .unwrap();
         assert!(result["llm_analysis"].as_str().is_some());
     }
 

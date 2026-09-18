@@ -15,7 +15,8 @@ pub fn read_csv(content: &[u8]) -> AppResult<crate::model::Spreadsheet> {
 
     let mut rows = Vec::new();
     for result in rdr.records() {
-        let record = result.map_err(|e| AppError::Validation(format!("CSV record error: {}", e)))?;
+        let record =
+            result.map_err(|e| AppError::Validation(format!("CSV record error: {}", e)))?;
         let row: Vec<String> = record.iter().map(|field| field.to_string()).collect();
         rows.push(row);
     }
@@ -29,7 +30,10 @@ pub fn read_csv(content: &[u8]) -> AppResult<crate::model::Spreadsheet> {
     })
 }
 
-pub fn read_csv_with_delimiter(content: &[u8], delimiter: u8) -> AppResult<crate::model::Spreadsheet> {
+pub fn read_csv_with_delimiter(
+    content: &[u8],
+    delimiter: u8,
+) -> AppResult<crate::model::Spreadsheet> {
     let cursor = Cursor::new(content);
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(delimiter)
@@ -44,7 +48,8 @@ pub fn read_csv_with_delimiter(content: &[u8], delimiter: u8) -> AppResult<crate
 
     let mut rows = Vec::new();
     for result in rdr.records() {
-        let record = result.map_err(|e| AppError::Validation(format!("CSV record error: {}", e)))?;
+        let record =
+            result.map_err(|e| AppError::Validation(format!("CSV record error: {}", e)))?;
         let row: Vec<String> = record.iter().map(|field| field.to_string()).collect();
         rows.push(row);
     }
@@ -59,9 +64,8 @@ pub fn read_csv_with_delimiter(content: &[u8], delimiter: u8) -> AppResult<crate
 }
 
 pub fn read_xlsx(content: &[u8]) -> AppResult<crate::model::Spreadsheet> {
-    let mut workbook: Xlsx<Cursor<&[u8]>> =
-        open_workbook_from_rs(Cursor::new(content))
-            .map_err(|e| AppError::Validation(format!("XLSX open error: {}", e)))?;
+    let mut workbook: Xlsx<Cursor<&[u8]>> = open_workbook_from_rs(Cursor::new(content))
+        .map_err(|e| AppError::Validation(format!("XLSX open error: {}", e)))?;
 
     let sheet_names = workbook.sheet_names().to_vec();
     let mut sheets = Vec::new();
@@ -125,10 +129,7 @@ pub fn to_json(spreadsheet: &crate::model::Spreadsheet) -> serde_json::Value {
                     let mut obj = serde_json::Map::new();
                     for (i, header) in sheet.headers.iter().enumerate() {
                         let value = row.get(i).map(|s| s.as_str()).unwrap_or("");
-                        obj.insert(
-                            header.clone(),
-                            serde_json::Value::String(value.to_string()),
-                        );
+                        obj.insert(header.clone(), serde_json::Value::String(value.to_string()));
                     }
                     serde_json::Value::Object(obj)
                 })
@@ -159,11 +160,11 @@ pub fn summarize(spreadsheet: &crate::model::Spreadsheet) -> serde_json::Value {
                 .iter()
                 .enumerate()
                 .filter_map(|(i, h)| {
-                    if sheet.rows.iter().any(|row| {
-                        row.get(i)
-                            .and_then(|v| v.parse::<f64>().ok())
-                            .is_some()
-                    }) {
+                    if sheet
+                        .rows
+                        .iter()
+                        .any(|row| row.get(i).and_then(|v| v.parse::<f64>().ok()).is_some())
+                    {
                         Some((i, h.clone()))
                     } else {
                         None
@@ -176,10 +177,7 @@ pub fn summarize(spreadsheet: &crate::model::Spreadsheet) -> serde_json::Value {
                 let values: Vec<f64> = sheet
                     .rows
                     .iter()
-                    .filter_map(|row| {
-                        row.get(*col_idx)
-                            .and_then(|v| v.parse::<f64>().ok())
-                    })
+                    .filter_map(|row| row.get(*col_idx).and_then(|v| v.parse::<f64>().ok()))
                     .collect();
 
                 if !values.is_empty() {
@@ -220,9 +218,7 @@ pub fn summarize(spreadsheet: &crate::model::Spreadsheet) -> serde_json::Value {
 
 pub fn merge(spreadsheets: &[crate::model::Spreadsheet]) -> AppResult<crate::model::Spreadsheet> {
     if spreadsheets.is_empty() {
-        return Err(AppError::Validation(
-            "No spreadsheets to merge".to_string(),
-        ));
+        return Err(AppError::Validation("No spreadsheets to merge".to_string()));
     }
 
     let mut all_sheets = Vec::new();
@@ -245,18 +241,12 @@ pub fn filter_rows(
             .headers
             .iter()
             .position(|h| h == column)
-            .ok_or_else(|| {
-                AppError::Validation(format!("Column '{}' not found", column))
-            })?;
+            .ok_or_else(|| AppError::Validation(format!("Column '{}' not found", column)))?;
 
         let filtered_rows: Vec<Vec<String>> = sheet
             .rows
             .iter()
-            .filter(|row| {
-                row.get(col_idx)
-                    .map(|v| predicate(v))
-                    .unwrap_or(false)
-            })
+            .filter(|row| row.get(col_idx).map(|v| predicate(v)).unwrap_or(false))
             .cloned()
             .collect();
 

@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 pub struct ProcurementDecisionAgent;
 
@@ -82,14 +84,20 @@ impl Agent for ProcurementDecisionAgent {
         } else {
             let best = valid_quotes[0];
             let best_price = best.get("price").and_then(|p| p.as_f64()).unwrap_or(0.0);
-            let vendor_name = best.get("vendor").and_then(|v| v.as_str()).unwrap_or("Unknown");
+            let vendor_name = best
+                .get("vendor")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown");
 
-            let alternatives: Vec<serde_json::Value> = valid_quotes[1..].iter().map(|q| {
-                serde_json::json!({
-                    "vendor": q.get("vendor").and_then(|v| v.as_str()).unwrap_or("Unknown"),
-                    "price": q.get("price").and_then(|p| p.as_f64()).unwrap_or(0.0),
+            let alternatives: Vec<serde_json::Value> = valid_quotes[1..]
+                .iter()
+                .map(|q| {
+                    serde_json::json!({
+                        "vendor": q.get("vendor").and_then(|v| v.as_str()).unwrap_or("Unknown"),
+                        "price": q.get("price").and_then(|p| p.as_f64()).unwrap_or(0.0),
+                    })
                 })
-            }).collect();
+                .collect();
 
             serde_json::json!({
                 "decision": "proceed_with_best",
@@ -131,7 +139,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response("Supplier A offers the best value. Recommend proceeding."))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            "Supplier A offers the best value. Recommend proceeding.",
+        ))
     }
 
     #[tokio::test]
@@ -207,7 +217,13 @@ mod tests {
             "budget_limit": 1000
         });
         let result = agent.execute_with_context(input, &ctx).await.unwrap();
-        assert_eq!(result["recommendation"]["alternatives"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            result["recommendation"]["alternatives"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
     }
 
     #[tokio::test]

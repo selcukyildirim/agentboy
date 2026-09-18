@@ -26,7 +26,10 @@ impl Metrics {
     }
 
     pub fn record_histogram(&mut self, name: &str, value: f64) {
-        self.histograms.entry(name.to_string()).or_insert_with(Vec::new).push(value);
+        self.histograms
+            .entry(name.to_string())
+            .or_insert_with(Vec::new)
+            .push(value);
     }
 
     pub fn get_counter(&self, name: &str) -> u64 {

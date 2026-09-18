@@ -196,8 +196,18 @@ mod tests {
     #[test]
     fn test_cross_validate() {
         let validator = EvidenceValidator::new();
-        let e1 = Evidence::new("Price is $100", EvidenceSource::Document, "doc1", serde_json::json!({}));
-        let e2 = Evidence::new("Price is $100", EvidenceSource::API, "api1", serde_json::json!({}));
+        let e1 = Evidence::new(
+            "Price is $100",
+            EvidenceSource::Document,
+            "doc1",
+            serde_json::json!({}),
+        );
+        let e2 = Evidence::new(
+            "Price is $100",
+            EvidenceSource::API,
+            "api1",
+            serde_json::json!({}),
+        );
         let result = validator.cross_validate(&[e1, e2]);
         assert!(result.is_consistent);
     }

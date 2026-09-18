@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
@@ -21,9 +23,14 @@ impl Agent for PurchaseOrderValidatorAgent {
             version: "2.0.0".to_string(),
             name: "PO Validator".to_string(),
             department: "Procurement".to_string(),
-            description: "Validate purchase orders against budget, policy, and vendor limits".to_string(),
+            description: "Validate purchase orders against budget, policy, and vendor limits"
+                .to_string(),
             tier: AgentTier::Free,
-            skills: vec!["spreadsheet.parse".to_string(), "document.validate".to_string(), "llm.analysis".to_string()],
+            skills: vec![
+                "spreadsheet.parse".to_string(),
+                "document.validate".to_string(),
+                "llm.analysis".to_string(),
+            ],
             permissions: AgentPermissions {
                 filesystem_read: true,
                 filesystem_write: false,
@@ -37,9 +44,17 @@ impl Agent for PurchaseOrderValidatorAgent {
             output_schema: None,
             max_cost_usd: None,
             input_schema: vec![
-                InputField::new("purchase_orders", "Purchase Orders", InputKind::File, true).with_example("po_number,supplier,amount\nPO-1,Acme,1000.00"),
-                InputField::new("budget_limit", "Budget Limit", InputKind::Number, true).with_example("50000"),
-                InputField::new("approval_threshold", "Approval Threshold", InputKind::Number, true).with_example("10000"),
+                InputField::new("purchase_orders", "Purchase Orders", InputKind::File, true)
+                    .with_example("po_number,supplier,amount\nPO-1,Acme,1000.00"),
+                InputField::new("budget_limit", "Budget Limit", InputKind::Number, true)
+                    .with_example("50000"),
+                InputField::new(
+                    "approval_threshold",
+                    "Approval Threshold",
+                    InputKind::Number,
+                    true,
+                )
+                .with_example("10000"),
             ],
         }
     }

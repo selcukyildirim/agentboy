@@ -90,7 +90,12 @@ mod tests {
     #[test]
     fn test_budget_select_chunks() {
         let mut budget = ContextBudget::new(100, 20);
-        let chunks = vec![make_chunk(30), make_chunk(30), make_chunk(30), make_chunk(30)];
+        let chunks = vec![
+            make_chunk(30),
+            make_chunk(30),
+            make_chunk(30),
+            make_chunk(30),
+        ];
         let selected = budget.select_chunks(chunks);
         assert_eq!(selected.len(), 2);
         assert_eq!(budget.used(), 60);

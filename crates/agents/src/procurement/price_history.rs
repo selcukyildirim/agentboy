@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
@@ -60,7 +62,10 @@ impl Agent for PriceHistoryAgent {
             return Err(AppError::Validation("No price records found".to_string()));
         }
 
-        let price_values: Vec<f64> = records.iter().map(|r| csv_util::record_get_f64(r, "price")).collect();
+        let price_values: Vec<f64> = records
+            .iter()
+            .map(|r| csv_util::record_get_f64(r, "price"))
+            .collect();
         let current_price = price_values.last().copied().unwrap_or(0.0);
         let avg_price = if !price_values.is_empty() {
             price_values.iter().sum::<f64>() / price_values.len() as f64
@@ -68,7 +73,10 @@ impl Agent for PriceHistoryAgent {
             0.0
         };
         let min_price = price_values.iter().cloned().fold(f64::INFINITY, f64::min);
-        let max_price = price_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let max_price = price_values
+            .iter()
+            .cloned()
+            .fold(f64::NEG_INFINITY, f64::max);
 
         let first_price = price_values.first().copied().unwrap_or(0.0);
         let total_change_pct = if first_price != 0.0 {
@@ -105,7 +113,11 @@ impl Agent for PriceHistoryAgent {
         }
 
         let std_dev = csv_util::standard_deviation(&price_values);
-        let cv = if avg_price > 0.0 { std_dev / avg_price } else { 0.0 };
+        let cv = if avg_price > 0.0 {
+            std_dev / avg_price
+        } else {
+            0.0
+        };
 
         let system_prompt = "You are a procurement price analyst. Analyze price trends and provide purchasing recommendations. Be concise.";
         let user_prompt = format!(
@@ -145,7 +157,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response("Prices are trending upward. Consider locking in current rates."))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            "Prices are trending upward. Consider locking in current rates.",
+        ))
     }
 
     #[tokio::test]

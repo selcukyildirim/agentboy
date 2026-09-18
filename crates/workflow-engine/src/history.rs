@@ -35,13 +35,12 @@ impl WorkflowHistory {
     }
 
     pub async fn get_execution(&self, id: &str) -> AppResult<Option<WorkflowExecution>> {
-        let row: Option<(String,)> = sqlx::query_as(
-            "SELECT data_json FROM workflow_executions WHERE id = ?"
-        )
-        .bind(id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| agent_common::error::AppError::Database(e.to_string()))?;
+        let row: Option<(String,)> =
+            sqlx::query_as("SELECT data_json FROM workflow_executions WHERE id = ?")
+                .bind(id)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| agent_common::error::AppError::Database(e.to_string()))?;
 
         match row {
             Some((json,)) => {
@@ -53,7 +52,11 @@ impl WorkflowHistory {
         }
     }
 
-    pub async fn list_by_workflow(&self, workflow_id: &str, limit: u32) -> AppResult<Vec<WorkflowExecution>> {
+    pub async fn list_by_workflow(
+        &self,
+        workflow_id: &str,
+        limit: u32,
+    ) -> AppResult<Vec<WorkflowExecution>> {
         let rows: Vec<(String,)> = sqlx::query_as(
             "SELECT data_json FROM workflow_executions WHERE workflow_id = ? ORDER BY started_at DESC LIMIT ?"
         )
@@ -78,7 +81,7 @@ impl WorkflowHistory {
 
         sqlx::query(
             "INSERT INTO workflow_versions (workflow_id, version, data_json, changelog, created_at)
-             VALUES (?, ?, ?, ?, datetime('now'))"
+             VALUES (?, ?, ?, ?, datetime('now'))",
         )
         .bind(&workflow.id)
         .bind(workflow.version)
@@ -91,9 +94,13 @@ impl WorkflowHistory {
         Ok(())
     }
 
-    pub async fn get_version(&self, workflow_id: &str, version: u32) -> AppResult<Option<Workflow>> {
+    pub async fn get_version(
+        &self,
+        workflow_id: &str,
+        version: u32,
+    ) -> AppResult<Option<Workflow>> {
         let row: Option<(String,)> = sqlx::query_as(
-            "SELECT data_json FROM workflow_versions WHERE workflow_id = ? AND version = ?"
+            "SELECT data_json FROM workflow_versions WHERE workflow_id = ? AND version = ?",
         )
         .bind(workflow_id)
         .bind(version)
@@ -113,7 +120,7 @@ impl WorkflowHistory {
 
     pub async fn list_versions(&self, workflow_id: &str) -> AppResult<Vec<u32>> {
         let rows: Vec<(u32,)> = sqlx::query_as(
-            "SELECT version FROM workflow_versions WHERE workflow_id = ? ORDER BY version DESC"
+            "SELECT version FROM workflow_versions WHERE workflow_id = ? ORDER BY version DESC",
         )
         .bind(workflow_id)
         .fetch_all(&self.pool)
@@ -142,9 +149,11 @@ mod tests {
                 data_json TEXT NOT NULL,
                 started_at TEXT NOT NULL,
                 completed_at TEXT
-            )"
+            )",
         )
-        .execute(db.pool()).await.unwrap();
+        .execute(db.pool())
+        .await
+        .unwrap();
 
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS workflow_versions (
@@ -154,9 +163,11 @@ mod tests {
                 changelog TEXT,
                 created_at TEXT NOT NULL,
                 PRIMARY KEY (workflow_id, version)
-            )"
+            )",
         )
-        .execute(db.pool()).await.unwrap();
+        .execute(db.pool())
+        .await
+        .unwrap();
 
         let history = WorkflowHistory::new(db.pool().clone());
 

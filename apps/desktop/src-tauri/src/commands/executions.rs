@@ -124,7 +124,9 @@ fn row_to_execution(row: &sqlx::sqlite::SqliteRow) -> Execution {
         id: row.get("id"),
         agent_id: row.get("agent_id"),
         status: row.get("status"),
-        input: input.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::json!({})),
+        input: input
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or(serde_json::json!({})),
         output: output.and_then(|s| serde_json::from_str(&s).ok()),
         started_at: row.get("started_at"),
         completed_at: row.get("completed_at"),
@@ -134,7 +136,9 @@ fn row_to_execution(row: &sqlx::sqlite::SqliteRow) -> Execution {
         output_tokens: row.get::<Option<i64>, _>("output_tokens").unwrap_or(0) as u32,
         cost_usd: row.get("cost_usd"),
         error: row.get("error"),
-        steps: steps.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default(),
+        steps: steps
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default(),
     }
 }
 
@@ -193,20 +197,28 @@ pub async fn get_execution_stats(
     let days = days.unwrap_or(7) as i64;
     let cutoff = (chrono::Utc::now() - chrono::Duration::days(days)).to_rfc3339();
 
-    let rows = sqlx::query("SELECT * FROM agent_executions WHERE started_at >= ? ORDER BY started_at ASC")
-        .bind(cutoff)
-        .fetch_all(&state.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let rows =
+        sqlx::query("SELECT * FROM agent_executions WHERE started_at >= ? ORDER BY started_at ASC")
+            .bind(cutoff)
+            .fetch_all(&state.pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
     let execs: Vec<Execution> = rows.iter().map(row_to_execution).collect();
 
     let total = execs.len() as u64;
     let success = execs.iter().filter(|e| e.status == "completed").count() as u64;
     let failed = execs.iter().filter(|e| e.status == "failed").count() as u64;
-    let success_rate = if total > 0 { success as f64 / total as f64 } else { 0.0 };
+    let success_rate = if total > 0 {
+        success as f64 / total as f64
+    } else {
+        0.0
+    };
 
-    let mut durations: Vec<f64> = execs.iter().filter_map(|e| e.duration_ms.map(|d| d as f64)).collect();
+    let mut durations: Vec<f64> = execs
+        .iter()
+        .filter_map(|e| e.duration_ms.map(|d| d as f64))
+        .collect();
     durations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let avg_duration_ms = if durations.is_empty() {
         0.0
@@ -224,9 +236,14 @@ pub async fn get_execution_stats(
     let total_input_tokens: u64 = execs.iter().map(|e| e.input_tokens as u64).sum();
     let total_output_tokens: u64 = execs.iter().map(|e| e.output_tokens as u64).sum();
     let total_cost_usd: f64 = execs.iter().filter_map(|e| e.cost_usd).sum();
-    let avg_cost_usd = if total > 0 { total_cost_usd / total as f64 } else { 0.0 };
+    let avg_cost_usd = if total > 0 {
+        total_cost_usd / total as f64
+    } else {
+        0.0
+    };
 
-    let mut by_day: std::collections::BTreeMap<String, DailyStat> = std::collections::BTreeMap::new();
+    let mut by_day: std::collections::BTreeMap<String, DailyStat> =
+        std::collections::BTreeMap::new();
     for e in &execs {
         let date = e.started_at.get(0..10).unwrap_or("").to_string();
         let entry = by_day.entry(date.clone()).or_insert(DailyStat {

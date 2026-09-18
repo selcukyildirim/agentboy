@@ -6,6 +6,6 @@ pub mod resilience;
 
 pub use crash_recovery::{CrashRecovery, CrashState, PendingExecution};
 pub use health::{HealthChecker, HealthReport, HealthStatus};
-pub use metrics::{Metrics, HistogramStats};
+pub use metrics::{HistogramStats, Metrics};
 pub use rate_limit::RateLimiter;
 pub use resilience::{CircuitBreaker, RetryPolicy};

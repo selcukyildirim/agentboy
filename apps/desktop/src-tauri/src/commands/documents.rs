@@ -26,10 +26,7 @@ impl CachedEmbeddingProvider {
 
 #[async_trait::async_trait]
 impl EmbeddingProvider for CachedEmbeddingProvider {
-    async fn embed(
-        &self,
-        texts: &[String],
-    ) -> agent_common::error::AppResult<Vec<Vec<f32>>> {
+    async fn embed(&self, texts: &[String]) -> agent_common::error::AppResult<Vec<Vec<f32>>> {
         let cache = EmbeddingCache::new();
         let mut out = Vec::with_capacity(texts.len());
         for text in texts {
@@ -227,7 +224,11 @@ pub async fn query_rag(query: String, top_k: Option<usize>) -> Result<serde_json
             chunk_id: c.chunk_id.clone(),
             document_id: c.document_id.clone(),
             document_name: doc_name(&state, &c.document_id),
-            section: c.metadata.heading.clone().or_else(|| c.metadata.section.clone()),
+            section: c
+                .metadata
+                .heading
+                .clone()
+                .or_else(|| c.metadata.section.clone()),
             page: c.metadata.page,
             content: c.content.clone(),
         })

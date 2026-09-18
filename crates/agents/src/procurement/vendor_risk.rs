@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
@@ -60,7 +62,10 @@ impl Agent for VendorRiskAgent {
             return Err(AppError::Validation("No vendor records found".to_string()));
         }
 
-        let total_spend: f64 = vendors.iter().map(|r| csv_util::record_get_f64(r, "annual_spend")).sum();
+        let total_spend: f64 = vendors
+            .iter()
+            .map(|r| csv_util::record_get_f64(r, "annual_spend"))
+            .sum();
 
         let mut vendor_reports = Vec::new();
         let mut high_risk_count = 0;
@@ -73,14 +78,29 @@ impl Agent for VendorRiskAgent {
             let annual_spend = csv_util::record_get_f64(vendor, "annual_spend");
             let lead_time_days = csv_util::record_get_f64(vendor, "lead_time_days");
 
-            let risk_score = calculate_risk_score(delivery_score, quality_score, financial_score, lead_time_days);
-            let risk_level = if risk_score > 70 { "high" } else if risk_score > 40 { "medium" } else { "low" };
+            let risk_score = calculate_risk_score(
+                delivery_score,
+                quality_score,
+                financial_score,
+                lead_time_days,
+            );
+            let risk_level = if risk_score > 70 {
+                "high"
+            } else if risk_score > 40 {
+                "medium"
+            } else {
+                "low"
+            };
 
             if risk_level == "high" {
                 high_risk_count += 1;
             }
 
-            let concentration = if total_spend > 0.0 { annual_spend / total_spend } else { 0.0 };
+            let concentration = if total_spend > 0.0 {
+                annual_spend / total_spend
+            } else {
+                0.0
+            };
 
             vendor_reports.push(serde_json::json!({
                 "name": name,
@@ -95,7 +115,13 @@ impl Agent for VendorRiskAgent {
             }));
         }
 
-        vendor_reports.sort_by(|a, b| b["risk_score"].as_f64().unwrap_or(0.0).partial_cmp(&a["risk_score"].as_f64().unwrap_or(0.0)).unwrap_or(std::cmp::Ordering::Equal));
+        vendor_reports.sort_by(|a, b| {
+            b["risk_score"]
+                .as_f64()
+                .unwrap_or(0.0)
+                .partial_cmp(&a["risk_score"].as_f64().unwrap_or(0.0))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let system_prompt = "You are a vendor risk manager. Analyze vendor risk profiles and recommend mitigation strategies. Be concise.";
         let user_prompt = format!(
@@ -126,10 +152,26 @@ impl Default for VendorRiskAgent {
 fn calculate_risk_score(delivery: f64, quality: f64, financial: f64, lead_time: f64) -> u32 {
     let mut score: u32 = 0;
 
-    if delivery < 0.5 { score += 30; } else if delivery < 0.7 { score += 15; }
-    if quality < 0.5 { score += 30; } else if quality < 0.7 { score += 15; }
-    if financial < 0.5 { score += 25; } else if financial < 0.7 { score += 10; }
-    if lead_time > 30.0 { score += 15; } else if lead_time > 14.0 { score += 5; }
+    if delivery < 0.5 {
+        score += 30;
+    } else if delivery < 0.7 {
+        score += 15;
+    }
+    if quality < 0.5 {
+        score += 30;
+    } else if quality < 0.7 {
+        score += 15;
+    }
+    if financial < 0.5 {
+        score += 25;
+    } else if financial < 0.7 {
+        score += 10;
+    }
+    if lead_time > 30.0 {
+        score += 15;
+    } else if lead_time > 14.0 {
+        score += 5;
+    }
 
     score.min(100)
 }
@@ -140,7 +182,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response("Vendor B is high risk. Consider backup suppliers."))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            "Vendor B is high risk. Consider backup suppliers.",
+        ))
     }
 
     #[tokio::test]
@@ -203,7 +247,10 @@ mod tests {
         });
         let result = agent.execute_with_context(input, &ctx).await.unwrap();
         let vendors = result["vendors"].as_array().unwrap();
-        assert!(vendors[0]["risk_score"].as_f64().unwrap() >= vendors[1]["risk_score"].as_f64().unwrap());
+        assert!(
+            vendors[0]["risk_score"].as_f64().unwrap()
+                >= vendors[1]["risk_score"].as_f64().unwrap()
+        );
     }
 
     #[tokio::test]

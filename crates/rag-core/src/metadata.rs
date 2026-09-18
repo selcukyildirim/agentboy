@@ -99,7 +99,10 @@ mod tests {
     #[test]
     fn test_filter_by_section() {
         let filter = MetadataFilter::new().with_section("intro");
-        let chunks = vec![make_chunk("doc1", "intro"), make_chunk("doc1", "conclusion")];
+        let chunks = vec![
+            make_chunk("doc1", "intro"),
+            make_chunk("doc1", "conclusion"),
+        ];
         let filtered = filter.filter(chunks);
         assert_eq!(filtered.len(), 1);
     }

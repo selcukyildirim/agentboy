@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
@@ -21,9 +23,15 @@ impl Agent for TaxComplianceAgent {
             version: "2.0.0".to_string(),
             name: "Tax Compliance".to_string(),
             department: "Accounting".to_string(),
-            description: "Validate tax calculations, check VAT/GST compliance, flag missing tax IDs".to_string(),
+            description:
+                "Validate tax calculations, check VAT/GST compliance, flag missing tax IDs"
+                    .to_string(),
             tier: AgentTier::Free,
-            skills: vec!["spreadsheet.parse".to_string(), "spreadsheet.analyze".to_string(), "llm.analysis".to_string()],
+            skills: vec![
+                "spreadsheet.parse".to_string(),
+                "spreadsheet.analyze".to_string(),
+                "llm.analysis".to_string(),
+            ],
             permissions: AgentPermissions {
                 filesystem_read: true,
                 filesystem_write: false,
@@ -37,7 +45,10 @@ impl Agent for TaxComplianceAgent {
             output_schema: None,
             max_cost_usd: None,
             input_schema: vec![
-                InputField::new("transactions", "Transactions", InputKind::File, true).with_example("date,amount,category\n2024-01-01,1000,inflow\n2024-01-02,500,outflow"),
+                InputField::new("transactions", "Transactions", InputKind::File, true)
+                    .with_example(
+                        "date,amount,category\n2024-01-01,1000,inflow\n2024-01-02,500,outflow",
+                    ),
                 InputField::new("tax_rate", "Tax Rate", InputKind::Number, true).with_example("20"),
             ],
         }
@@ -98,7 +109,11 @@ impl Agent for TaxComplianceAgent {
 
             if amount > 0.0 {
                 total_taxable += amount;
-                total_tax += if expected_tax > 0.0 { expected_tax } else { computed_tax };
+                total_tax += if expected_tax > 0.0 {
+                    expected_tax
+                } else {
+                    computed_tax
+                };
             }
         }
 

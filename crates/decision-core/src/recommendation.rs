@@ -47,7 +47,8 @@ pub struct ConfidenceFactor {
 
 impl Confidence {
     pub fn calculate(factors: Vec<ConfidenceFactor>) -> Self {
-        let score: f32 = factors.iter().map(|f| f.contribution).sum::<f32>() / factors.len().max(1) as f32;
+        let score: f32 =
+            factors.iter().map(|f| f.contribution).sum::<f32>() / factors.len().max(1) as f32;
         let level = ConfidenceLevel::from_score(score);
 
         Self {
@@ -134,22 +135,33 @@ mod tests {
 
     #[test]
     fn test_confidence_levels() {
-        assert!(matches!(ConfidenceLevel::from_score(0.9), ConfidenceLevel::High));
-        assert!(matches!(ConfidenceLevel::from_score(0.6), ConfidenceLevel::Medium));
-        assert!(matches!(ConfidenceLevel::from_score(0.3), ConfidenceLevel::Low));
-        assert!(matches!(ConfidenceLevel::from_score(0.1), ConfidenceLevel::Insufficient));
+        assert!(matches!(
+            ConfidenceLevel::from_score(0.9),
+            ConfidenceLevel::High
+        ));
+        assert!(matches!(
+            ConfidenceLevel::from_score(0.6),
+            ConfidenceLevel::Medium
+        ));
+        assert!(matches!(
+            ConfidenceLevel::from_score(0.3),
+            ConfidenceLevel::Low
+        ));
+        assert!(matches!(
+            ConfidenceLevel::from_score(0.1),
+            ConfidenceLevel::Insufficient
+        ));
     }
 
     #[test]
     fn test_recommendation() {
-        let rec = Recommendation::new("procurement", "Choose Vendor A")
-            .with_confidence(Confidence::calculate(vec![
-                ConfidenceFactor {
-                    name: "evidence_count".to_string(),
-                    contribution: 0.6,
-                    description: "Moderate evidence".to_string(),
-                },
-            ]));
+        let rec = Recommendation::new("procurement", "Choose Vendor A").with_confidence(
+            Confidence::calculate(vec![ConfidenceFactor {
+                name: "evidence_count".to_string(),
+                contribution: 0.6,
+                description: "Moderate evidence".to_string(),
+            }]),
+        );
 
         assert_eq!(rec.decision_type, "procurement");
         assert!(matches!(rec.confidence.level, ConfidenceLevel::Medium));

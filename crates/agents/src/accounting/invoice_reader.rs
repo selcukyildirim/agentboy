@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 pub struct InvoiceReaderAgent;
 
@@ -19,9 +21,14 @@ impl Agent for InvoiceReaderAgent {
             version: "2.0.0".to_string(),
             name: "Invoice Reader".to_string(),
             department: "Accounting".to_string(),
-            description: "Extract and validate structured data from invoice text using regex + LLM".to_string(),
+            description: "Extract and validate structured data from invoice text using regex + LLM"
+                .to_string(),
             tier: AgentTier::Free,
-            skills: vec!["document.parse".to_string(), "document.extract".to_string(), "llm.analysis".to_string()],
+            skills: vec![
+                "document.parse".to_string(),
+                "document.extract".to_string(),
+                "llm.analysis".to_string(),
+            ],
             permissions: AgentPermissions {
                 filesystem_read: true,
                 filesystem_write: false,
@@ -35,8 +42,10 @@ impl Agent for InvoiceReaderAgent {
             output_schema: None,
             max_cost_usd: None,
             input_schema: vec![
-                InputField::new("content", "Invoice Content", InputKind::Text, true).with_example("Invoice No: INV-123\nVendor: Acme\nTotal: 1000.00"),
-                InputField::new("filename", "Filename", InputKind::Text, false).with_example("invoice.txt"),
+                InputField::new("content", "Invoice Content", InputKind::Text, true)
+                    .with_example("Invoice No: INV-123\nVendor: Acme\nTotal: 1000.00"),
+                InputField::new("filename", "Filename", InputKind::Text, false)
+                    .with_example("invoice.txt"),
             ],
         }
     }
@@ -58,7 +67,10 @@ impl Agent for InvoiceReaderAgent {
         let extracted = extract_invoice_data(content);
 
         let system_prompt = "You are an invoice data extraction expert. Given raw invoice text, extract all key fields (invoice number, date, vendor, line items, total, tax). Return as JSON.";
-        let user_prompt = format!("Raw invoice text:\n\n{}\n\nExtract all invoice fields as JSON.", content);
+        let user_prompt = format!(
+            "Raw invoice text:\n\n{}\n\nExtract all invoice fields as JSON.",
+            content
+        );
         let llm_result = ctx.call_llm(system_prompt, &user_prompt).await?;
 
         let mut merged = extracted.as_object().cloned().unwrap_or_default();
@@ -99,7 +111,10 @@ fn extract_invoice_data(content: &str) -> serde_json::Value {
     if let Some(date) = extract_date(content) {
         data.insert("date".to_string(), serde_json::Value::String(date));
     }
-    if let Some(total) = extract_amount(content, &["total", "amount due", "balance due", "grand total"]) {
+    if let Some(total) = extract_amount(
+        content,
+        &["total", "amount due", "balance due", "grand total"],
+    ) {
         data.insert("total".to_string(), serde_json::Value::String(total));
     }
     if let Some(tax) = extract_amount(content, &["tax", "vat", "gst"]) {
@@ -117,7 +132,11 @@ fn extract_pattern(content: &str, keywords: &[&str]) -> Option<String> {
     for keyword in keywords {
         if let Some(pos) = lower.find(keyword) {
             let after = &content[pos + keyword.len()..];
-            let value: String = after.chars().skip_while(|c| *c == ':' || *c == ' ').take_while(|c| !c.is_whitespace() && *c != '\n').collect();
+            let value: String = after
+                .chars()
+                .skip_while(|c| *c == ':' || *c == ' ')
+                .take_while(|c| !c.is_whitespace() && *c != '\n')
+                .collect();
             if !value.is_empty() && value.len() < 50 {
                 return Some(value);
             }
@@ -127,7 +146,11 @@ fn extract_pattern(content: &str, keywords: &[&str]) -> Option<String> {
 }
 
 fn extract_date(content: &str) -> Option<String> {
-    let patterns = [r"\d{4}-\d{2}-\d{2}", r"\d{2}/\d{2}/\d{4}", r"\d{2}\.\d{2}\.\d{4}"];
+    let patterns = [
+        r"\d{4}-\d{2}-\d{2}",
+        r"\d{2}/\d{2}/\d{4}",
+        r"\d{2}\.\d{2}\.\d{4}",
+    ];
     for pattern in &patterns {
         if let Some(mat) = regex_lite::Regex::new(pattern).ok()?.find(content) {
             return Some(mat.as_str().to_string());
@@ -143,7 +166,10 @@ fn extract_amount(content: &str, keywords: &[&str]) -> Option<String> {
             let after = &content[pos..];
             for (i, c) in after.char_indices() {
                 if c == '$' || c == '€' || c == '£' || c.is_ascii_digit() {
-                    let amount: String = after[i..].chars().take_while(|c| c.is_ascii_digit() || *c == '.' || *c == ',').collect();
+                    let amount: String = after[i..]
+                        .chars()
+                        .take_while(|c| c.is_ascii_digit() || *c == '.' || *c == ',')
+                        .collect();
                     if !amount.is_empty() {
                         return Some(amount);
                     }
@@ -172,7 +198,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response(r#"{"invoice_number":"INV-001","date":"2024-01-15","vendor":"ACME Corp","total":"1234.56"}"#))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            r#"{"invoice_number":"INV-001","date":"2024-01-15","vendor":"ACME Corp","total":"1234.56"}"#,
+        ))
     }
 
     #[tokio::test]
@@ -234,7 +262,10 @@ mod tests {
 
     #[test]
     fn test_extract_date() {
-        assert_eq!(extract_date("Date: 2024-01-15"), Some("2024-01-15".to_string()));
+        assert_eq!(
+            extract_date("Date: 2024-01-15"),
+            Some("2024-01-15".to_string())
+        );
         assert_eq!(extract_date("01/15/2024"), Some("01/15/2024".to_string()));
         assert_eq!(extract_date("no date here"), None);
     }

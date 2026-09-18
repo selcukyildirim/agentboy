@@ -95,7 +95,10 @@ pub async fn read_secret(provider: &str) -> Option<String> {
 
 async fn delete_secret(provider: &str) -> Result<(), String> {
     let store = OsKeychainStore::new();
-    store.delete_credential(provider).await.map_err(|e| e.to_string())
+    store
+        .delete_credential(provider)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -172,7 +175,13 @@ pub async fn test_provider(
 
     let base = base_url
         .filter(|b| !b.trim().is_empty())
-        .or_else(|| get_meta().lock().unwrap().get(&provider).and_then(|m| m.base_url.clone()))
+        .or_else(|| {
+            get_meta()
+                .lock()
+                .unwrap()
+                .get(&provider)
+                .and_then(|m| m.base_url.clone())
+        })
         .unwrap_or_else(|| default_base_url(&provider).to_string());
 
     let client = reqwest::Client::new();

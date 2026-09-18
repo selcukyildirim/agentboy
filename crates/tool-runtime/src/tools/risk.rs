@@ -26,7 +26,10 @@ impl ToolRiskClassifier {
     }
 
     pub fn requires_approval(risk: &ToolRisk) -> bool {
-        matches!(risk, ToolRisk::Destructive | ToolRisk::Financial | ToolRisk::Admin)
+        matches!(
+            risk,
+            ToolRisk::Destructive | ToolRisk::Financial | ToolRisk::Admin
+        )
     }
 
     pub fn is_allowed_in_free_tier(risk: &ToolRisk) -> bool {
@@ -62,7 +65,9 @@ mod tests {
 
     #[test]
     fn test_requires_approval() {
-        assert!(ToolRiskClassifier::requires_approval(&ToolRisk::Destructive));
+        assert!(ToolRiskClassifier::requires_approval(
+            &ToolRisk::Destructive
+        ));
         assert!(ToolRiskClassifier::requires_approval(&ToolRisk::Financial));
         assert!(!ToolRiskClassifier::requires_approval(&ToolRisk::Read));
     }
@@ -70,6 +75,8 @@ mod tests {
     #[test]
     fn test_free_tier() {
         assert!(ToolRiskClassifier::is_allowed_in_free_tier(&ToolRisk::Read));
-        assert!(!ToolRiskClassifier::is_allowed_in_free_tier(&ToolRisk::Admin));
+        assert!(!ToolRiskClassifier::is_allowed_in_free_tier(
+            &ToolRisk::Admin
+        ));
     }
 }

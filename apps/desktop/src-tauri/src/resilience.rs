@@ -211,8 +211,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_resilience_success() {
-        let result: AppResult<u32> =
-            call_with_resilience("test-ok", || async { Ok(42) }).await;
+        let result: AppResult<u32> = call_with_resilience("test-ok", || async { Ok(42) }).await;
         assert_eq!(result.unwrap(), 42);
     }
 

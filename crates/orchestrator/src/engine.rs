@@ -1,9 +1,9 @@
+use crate::context::ExecutionContext;
 use agent_common::error::{AppError, AppResult};
 use agent_common::types::{ExecutionId, ExecutionStatus};
 use agent_runtime::agent::{Agent, AgentExecutor};
 use agent_runtime::context::AgentContext;
 use agent_runtime::state::{ExecutionState, ExecutionStep};
-use crate::context::ExecutionContext;
 use audit_core::store::SqliteAuditStore;
 use skill_sdk::registry::SkillRegistry;
 use std::collections::HashMap;
@@ -124,7 +124,10 @@ impl Orchestrator {
 
     pub async fn get_steps(&self, execution_id: ExecutionId) -> AppResult<Vec<ExecutionStep>> {
         let steps = self.steps.read().await;
-        Ok(steps.get(&execution_id.to_string()).cloned().unwrap_or_default())
+        Ok(steps
+            .get(&execution_id.to_string())
+            .cloned()
+            .unwrap_or_default())
     }
 
     pub async fn status(&self, execution_id: ExecutionId) -> ExecutionStatus {
@@ -183,13 +186,15 @@ impl Orchestrator {
         )
         .await;
 
-        self.transition(execution_id, ExecutionState::Planning).await?;
+        self.transition(execution_id, ExecutionState::Planning)
+            .await?;
 
         let outcome = AgentExecutor::run_with_audit(agent, input, ctx, audit_store).await;
 
         match &outcome {
             Ok(output) => {
-                self.transition(execution_id, ExecutionState::Validating).await?;
+                self.transition(execution_id, ExecutionState::Validating)
+                    .await?;
                 self.push_step(
                     execution_id,
                     ExecutionStep {
@@ -203,7 +208,8 @@ impl Orchestrator {
                     },
                 )
                 .await;
-                self.transition(execution_id, ExecutionState::Completed).await?;
+                self.transition(execution_id, ExecutionState::Completed)
+                    .await?;
             }
             Err(e) => {
                 self.transition(
@@ -221,7 +227,10 @@ impl Orchestrator {
 
     async fn push_step(&self, execution_id: ExecutionId, step: ExecutionStep) {
         let mut steps = self.steps.write().await;
-        steps.entry(execution_id.to_string()).or_default().push(step);
+        steps
+            .entry(execution_id.to_string())
+            .or_default()
+            .push(step);
     }
 }
 
@@ -238,7 +247,10 @@ mod tests {
     #[tokio::test]
     async fn test_start_execution() {
         let orch = Orchestrator::new();
-        let id = orch.start_execution("agent-1", "1.0.0", serde_json::json!({}), 10, 60).await.unwrap();
+        let id = orch
+            .start_execution("agent-1", "1.0.0", serde_json::json!({}), 10, 60)
+            .await
+            .unwrap();
         let state = orch.get_state(id).await.unwrap();
         assert!(matches!(state, ExecutionState::Pending));
     }
@@ -246,7 +258,10 @@ mod tests {
     #[tokio::test]
     async fn test_transition() {
         let orch = Orchestrator::new();
-        let id = orch.start_execution("agent-1", "1.0.0", serde_json::json!({}), 10, 60).await.unwrap();
+        let id = orch
+            .start_execution("agent-1", "1.0.0", serde_json::json!({}), 10, 60)
+            .await
+            .unwrap();
         orch.transition(id, ExecutionState::Planning).await.unwrap();
         let state = orch.get_state(id).await.unwrap();
         assert!(matches!(state, ExecutionState::Planning));
@@ -255,7 +270,10 @@ mod tests {
     #[tokio::test]
     async fn test_cancel() {
         let orch = Orchestrator::new();
-        let id = orch.start_execution("agent-1", "1.0.0", serde_json::json!({}), 10, 60).await.unwrap();
+        let id = orch
+            .start_execution("agent-1", "1.0.0", serde_json::json!({}), 10, 60)
+            .await
+            .unwrap();
         orch.cancel(id, "user requested").await.unwrap();
         let state = orch.get_state(id).await.unwrap();
         assert!(matches!(state, ExecutionState::Cancelled { .. }));

@@ -10,9 +10,7 @@ pub use app_state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
+    tracing_subscriber::fmt().with_env_filter("info").init();
 
     let app_state = tauri::async_runtime::block_on(AppState::new());
 

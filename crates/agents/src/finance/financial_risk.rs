@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 use std::collections::HashMap;
 
 use crate::csv_util;
@@ -85,30 +87,31 @@ impl Agent for FinancialRiskAgent {
 
         let by_counterparty = csv_util::sum_by(&transactions, "counterparty", "amount");
 
-        let concentration_risk =
-            if let Some((name, amount)) = by_counterparty.iter().max_by(|a, b| {
+        let concentration_risk = if let Some((name, amount)) =
+            by_counterparty.iter().max_by(|a, b| {
                 a.1.abs()
                     .partial_cmp(&b.1.abs())
                     .unwrap_or(std::cmp::Ordering::Equal)
             }) {
-                let pct = if total_exposure > 0.0 {
-                    amount.abs() / total_exposure
-                } else {
-                    0.0
-                };
-                serde_json::json!({
-                    "counterparty": name,
-                    "amount": amount,
-                    "percentage_of_total": format!("{:.1}%", pct * 100.0),
-                    "is_high_concentration": pct > 0.3,
-                })
+            let pct = if total_exposure > 0.0 {
+                amount.abs() / total_exposure
             } else {
-                serde_json::json!(null)
+                0.0
             };
+            serde_json::json!({
+                "counterparty": name,
+                "amount": amount,
+                "percentage_of_total": format!("{:.1}%", pct * 100.0),
+                "is_high_concentration": pct > 0.3,
+            })
+        } else {
+            serde_json::json!(null)
+        };
 
         let by_category = csv_util::sum_by(&transactions, "category", "amount");
 
-        let risk_score = calculate_risk_score(&amounts, volatility, &by_counterparty, total_exposure);
+        let risk_score =
+            calculate_risk_score(&amounts, volatility, &by_counterparty, total_exposure);
 
         let system_prompt = "You are a financial risk analyst. Analyze the transaction data and provide a risk assessment covering concentration risk, volatility, exposure patterns, and recommended mitigations. Be concise and professional.";
 

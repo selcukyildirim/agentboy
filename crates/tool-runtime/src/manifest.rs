@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use agent_common::types::ToolRisk;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolManifest {

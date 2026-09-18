@@ -47,7 +47,11 @@ impl EgressGuard {
         self.classifier.classify(content, has_secrets, has_pii)
     }
 
-    pub fn check_and_sanitize(&mut self, content: &str, provider: &str) -> AppResult<(String, DataClassification)> {
+    pub fn check_and_sanitize(
+        &mut self,
+        content: &str,
+        provider: &str,
+    ) -> AppResult<(String, DataClassification)> {
         let classification = self.classify_content(content);
 
         let entry = AuditEntry {
@@ -120,13 +124,17 @@ mod tests {
     #[test]
     fn test_check_classification_allowed() {
         let guard = EgressGuard::new(DataClassification::L3MinimumRequired);
-        assert!(guard.check_classification(&DataClassification::L1MetadataOnly).is_ok());
+        assert!(guard
+            .check_classification(&DataClassification::L1MetadataOnly)
+            .is_ok());
     }
 
     #[test]
     fn test_check_classification_blocked() {
         let guard = EgressGuard::new(DataClassification::L1MetadataOnly);
-        assert!(guard.check_classification(&DataClassification::L3MinimumRequired).is_err());
+        assert!(guard
+            .check_classification(&DataClassification::L3MinimumRequired)
+            .is_err());
     }
 
     #[test]
@@ -139,7 +147,9 @@ mod tests {
     #[test]
     fn test_sanitize_pii() {
         let mut guard = EgressGuard::new(DataClassification::L3MinimumRequired);
-        let (sanitized, _class) = guard.check_and_sanitize("Email user@example.com for info", "openai").unwrap();
+        let (sanitized, _class) = guard
+            .check_and_sanitize("Email user@example.com for info", "openai")
+            .unwrap();
         assert!(sanitized.contains("[REDACTED_PII]"));
     }
 

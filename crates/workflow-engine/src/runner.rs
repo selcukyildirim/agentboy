@@ -105,14 +105,22 @@ impl WorkflowRunner {
         let mut prev_outputs: HashMap<String, serde_json::Value> = HashMap::new();
 
         for step in &workflow.steps {
-            let step_result = self.execute_step(executor, step, &params, &mut prev_outputs).await;
+            let step_result = self
+                .execute_step(executor, step, &params, &mut prev_outputs)
+                .await;
             execution.step_results.push(step_result.clone());
 
             match step_result.status {
                 StepStatus::Failed => {
                     execution.status = ExecutionStatus::Failed;
                     execution.error = step_result.error.clone();
-                    self.perform_rollback(executor, workflow, &execution.step_results, &mut prev_outputs).await;
+                    self.perform_rollback(
+                        executor,
+                        workflow,
+                        &execution.step_results,
+                        &mut prev_outputs,
+                    )
+                    .await;
                     break;
                 }
                 StepStatus::Completed => {
@@ -135,7 +143,11 @@ impl WorkflowRunner {
         Ok(execution)
     }
 
-    fn extract_params(&self, workflow: &Workflow, input: &serde_json::Value) -> AppResult<HashMap<String, serde_json::Value>> {
+    fn extract_params(
+        &self,
+        workflow: &Workflow,
+        input: &serde_json::Value,
+    ) -> AppResult<HashMap<String, serde_json::Value>> {
         let mut params = HashMap::new();
 
         for param in &workflow.parameters {
@@ -144,14 +156,21 @@ impl WorkflowRunner {
             } else if let Some(default) = &param.default {
                 params.insert(param.name.clone(), default.clone());
             } else if param.required {
-                return Err(AppError::Validation(format!("Missing required parameter: {}", param.name)));
+                return Err(AppError::Validation(format!(
+                    "Missing required parameter: {}",
+                    param.name
+                )));
             }
         }
 
         Ok(params)
     }
 
-    fn create_execution(&self, workflow: &Workflow, input: &serde_json::Value) -> WorkflowExecution {
+    fn create_execution(
+        &self,
+        workflow: &Workflow,
+        input: &serde_json::Value,
+    ) -> WorkflowExecution {
         WorkflowExecution {
             id: uuid::Uuid::new_v4().to_string(),
             workflow_id: workflow.id.clone(),
@@ -214,11 +233,14 @@ impl WorkflowRunner {
             let mut resolved = mapping.clone();
             if let Some(obj) = resolved.as_object_mut() {
                 for (_key, value) in obj.iter_mut() {
-                    if let Some(param_name) = value.as_str().and_then(|s| s.strip_prefix("$param.")) {
+                    if let Some(param_name) = value.as_str().and_then(|s| s.strip_prefix("$param."))
+                    {
                         if let Some(param_val) = params.get(param_name) {
                             *value = param_val.clone();
                         }
-                    } else if let Some(ref_name) = value.as_str().and_then(|s| s.strip_prefix("$prev.")) {
+                    } else if let Some(ref_name) =
+                        value.as_str().and_then(|s| s.strip_prefix("$prev."))
+                    {
                         if let Some(prev_val) = prev_outputs.get(ref_name) {
                             *value = prev_val.clone();
                         }
@@ -282,7 +304,7 @@ impl Default for WorkflowRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::workflow::{Workflow, WorkflowStep, WorkflowParameter, ParameterType};
+    use crate::workflow::{ParameterType, Workflow, WorkflowParameter, WorkflowStep};
 
     #[tokio::test]
     async fn test_workflow_runner() {

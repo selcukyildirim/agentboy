@@ -93,7 +93,10 @@ impl Workflow {
         self.updated_at = chrono::Utc::now().to_rfc3339();
     }
 
-    pub fn validate_parameters(&self, provided: &HashMap<String, serde_json::Value>) -> Result<(), Vec<String>> {
+    pub fn validate_parameters(
+        &self,
+        provided: &HashMap<String, serde_json::Value>,
+    ) -> Result<(), Vec<String>> {
         let mut errors = Vec::new();
         for param in &self.parameters {
             if param.required && !provided.contains_key(&param.name) {
@@ -107,16 +110,24 @@ impl Workflow {
         }
     }
 
-    pub fn resolve_input(&self, step: &WorkflowStep, params: &HashMap<String, serde_json::Value>, prev_outputs: &HashMap<String, serde_json::Value>) -> serde_json::Value {
+    pub fn resolve_input(
+        &self,
+        step: &WorkflowStep,
+        params: &HashMap<String, serde_json::Value>,
+        prev_outputs: &HashMap<String, serde_json::Value>,
+    ) -> serde_json::Value {
         if let Some(ref mapping) = step.input_mapping {
             let mut resolved = mapping.clone();
             if let Some(obj) = resolved.as_object_mut() {
                 for (key, value) in obj.iter_mut() {
-                    if let Some(param_name) = value.as_str().and_then(|s| s.strip_prefix("$param.")) {
+                    if let Some(param_name) = value.as_str().and_then(|s| s.strip_prefix("$param."))
+                    {
                         if let Some(param_val) = params.get(param_name) {
                             *value = param_val.clone();
                         }
-                    } else if let Some(ref_name) = value.as_str().and_then(|s| s.strip_prefix("$prev.")) {
+                    } else if let Some(ref_name) =
+                        value.as_str().and_then(|s| s.strip_prefix("$prev."))
+                    {
                         if let Some(prev_val) = prev_outputs.get(ref_name) {
                             *value = prev_val.clone();
                         }

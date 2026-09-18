@@ -1,7 +1,5 @@
 use agent_common::error::AppResult;
-use agent_runtime::context::{
-    LlmCompletionRequest, LlmCompletionResponse, LlmProvider, LlmUsage,
-};
+use agent_runtime::context::{LlmCompletionRequest, LlmCompletionResponse, LlmProvider, LlmUsage};
 use async_trait::async_trait;
 use cache_core::llm_cache::{CachedLlmResult, LlmResultCache};
 use llm_gateway::gateway::LlmProvider as GatewayProvider;
@@ -17,7 +15,10 @@ pub struct GatewayProviderBridge {
 
 impl GatewayProviderBridge {
     pub fn new(provider: Arc<dyn GatewayProvider>, model: String) -> Self {
-        Self { inner: provider, model }
+        Self {
+            inner: provider,
+            model,
+        }
     }
 }
 
@@ -80,15 +81,13 @@ impl LlmProvider for GatewayProviderBridge {
                 .map(|m| m.content.as_str())
                 .unwrap_or("");
             let prompt_hash = LlmResultCache::prompt_hash(system, user);
-            Some(
-                LlmResultCache::new().cache_key(
-                    &provider,
-                    &model,
-                    "v1",
-                    &prompt_hash,
-                    temperature.unwrap_or(0.0),
-                ),
-            )
+            Some(LlmResultCache::new().cache_key(
+                &provider,
+                &model,
+                "v1",
+                &prompt_hash,
+                temperature.unwrap_or(0.0),
+            ))
         } else {
             None
         };

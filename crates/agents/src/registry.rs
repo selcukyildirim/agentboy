@@ -19,8 +19,8 @@ use crate::legal::{
     LegalRiskAssessmentAgent, RegulatoryMonitorAgent,
 };
 use crate::logistics::{
-    DeliveryTrackerAgent, FleetManagerAgent, FreightAnalyzerAgent, LastMileAgent, RouteOptimizerAgent,
-    WarehouseOptimizerAgent,
+    DeliveryTrackerAgent, FleetManagerAgent, FreightAnalyzerAgent, LastMileAgent,
+    RouteOptimizerAgent, WarehouseOptimizerAgent,
 };
 use crate::management::{
     BoardReportAgent, BudgetTrackerAgent, DecisionMatrixAgent, KPIReporterAgent, OKRAgent,

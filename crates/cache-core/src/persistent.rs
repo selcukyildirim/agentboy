@@ -1,6 +1,6 @@
-use sqlx::sqlite::SqlitePool;
 use agent_common::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
+use sqlx::sqlite::SqlitePool;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CacheMetadata {
@@ -38,13 +38,11 @@ impl PersistentCache {
         value: &str,
         ttl_seconds: Option<i64>,
     ) -> AppResult<()> {
-        let expires_at = ttl_seconds.map(|ttl| {
-            format!("datetime('now', '+{} seconds')", ttl)
-        });
+        let expires_at = ttl_seconds.map(|ttl| format!("datetime('now', '+{} seconds')", ttl));
 
         sqlx::query(
             "INSERT OR REPLACE INTO cache_entries (key, value, entry_type, created_at, expires_at)
-             VALUES (?, ?, ?, datetime('now'), ?)"
+             VALUES (?, ?, ?, datetime('now'), ?)",
         )
         .bind(key)
         .bind(value)
@@ -86,12 +84,10 @@ impl PersistentCache {
     }
 
     pub async fn stats(&self) -> AppResult<CacheStats> {
-        let row: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM cache_entries"
-        )
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| AppError::Database(e.to_string()))?;
+        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM cache_entries")
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
 
         Ok(CacheStats {
             total_entries: row.0 as u64,
@@ -113,7 +109,10 @@ mod tests {
         let db = agent_common::db::Database::new(":memory:").await.unwrap();
         let cache = PersistentCache::new(db.pool().clone());
 
-        cache.insert("test-key", "test", "hello world", None).await.unwrap();
+        cache
+            .insert("test-key", "test", "hello world", None)
+            .await
+            .unwrap();
         let value = cache.get("test-key").await.unwrap();
         assert!(value.is_some());
         assert_eq!(value.unwrap(), "hello world");
@@ -128,7 +127,10 @@ mod tests {
         let db = agent_common::db::Database::new(":memory:").await.unwrap();
         let cache = PersistentCache::new(db.pool().clone());
 
-        cache.insert("ttl-key", "test", "expires soon", Some(1)).await.unwrap();
+        cache
+            .insert("ttl-key", "test", "expires soon", Some(1))
+            .await
+            .unwrap();
         let value = cache.get("ttl-key").await.unwrap();
         assert!(value.is_some());
     }

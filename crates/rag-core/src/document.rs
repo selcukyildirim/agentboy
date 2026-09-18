@@ -81,7 +81,13 @@ impl Document {
 }
 
 pub fn detect_content_type(filename: &str) -> ContentType {
-    match filename.rsplit('.').next().unwrap_or("").to_lowercase().as_str() {
+    match filename
+        .rsplit('.')
+        .next()
+        .unwrap_or("")
+        .to_lowercase()
+        .as_str()
+    {
         "pdf" => ContentType::Pdf,
         "docx" | "doc" => ContentType::Docx,
         "xlsx" | "xls" => ContentType::Xlsx,
@@ -100,11 +106,20 @@ mod tests {
     #[test]
     fn test_detect_content_type() {
         assert!(matches!(detect_content_type("file.pdf"), ContentType::Pdf));
-        assert!(matches!(detect_content_type("file.docx"), ContentType::Docx));
-        assert!(matches!(detect_content_type("file.xlsx"), ContentType::Xlsx));
+        assert!(matches!(
+            detect_content_type("file.docx"),
+            ContentType::Docx
+        ));
+        assert!(matches!(
+            detect_content_type("file.xlsx"),
+            ContentType::Xlsx
+        ));
         assert!(matches!(detect_content_type("file.csv"), ContentType::Csv));
         assert!(matches!(detect_content_type("file.txt"), ContentType::Txt));
-        assert!(matches!(detect_content_type("file.unknown"), ContentType::Unknown));
+        assert!(matches!(
+            detect_content_type("file.unknown"),
+            ContentType::Unknown
+        ));
     }
 
     #[test]

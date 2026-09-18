@@ -125,7 +125,8 @@ pub trait AgentContext: Send + Sync {
             );
         }
 
-        let (sanitized_system, sanitized_user) = self.sanitize_for_egress(system_prompt, user_prompt)?;
+        let (sanitized_system, sanitized_user) =
+            self.sanitize_for_egress(system_prompt, user_prompt)?;
 
         let request = LlmCompletionRequest {
             model: self.config().model_override(),
@@ -160,7 +161,11 @@ pub trait AgentContext: Send + Sync {
         self.call_llm(system_prompt, &full_user).await
     }
 
-    fn sanitize_for_egress(&self, system_prompt: &str, user_prompt: &str) -> AppResult<(String, String)> {
+    fn sanitize_for_egress(
+        &self,
+        system_prompt: &str,
+        user_prompt: &str,
+    ) -> AppResult<(String, String)> {
         Ok((system_prompt.to_string(), user_prompt.to_string()))
     }
 }
@@ -188,7 +193,10 @@ impl DefaultAgentContext {
         Self::new(llm, AgentConfig::default())
     }
 
-    pub fn with_egress_classification(llm: Box<dyn LlmProvider>, classification: DataClassification) -> Self {
+    pub fn with_egress_classification(
+        llm: Box<dyn LlmProvider>,
+        classification: DataClassification,
+    ) -> Self {
         Self {
             llm,
             config: AgentConfig::default(),
@@ -220,15 +228,20 @@ impl AgentContext for DefaultAgentContext {
         *self.total_usage.lock().unwrap() += usage;
     }
 
-    fn sanitize_for_egress(&self, system_prompt: &str, user_prompt: &str) -> AppResult<(String, String)> {
+    fn sanitize_for_egress(
+        &self,
+        system_prompt: &str,
+        user_prompt: &str,
+    ) -> AppResult<(String, String)> {
         let mut guard = self.egress_guard.lock().unwrap();
         let provider_id = self.llm.provider_id();
 
-        let (sanitized_user, classification) = guard
-            .check_and_sanitize(user_prompt, provider_id)
-            .map_err(|e| agent_common::error::AppError::EgressBlocked {
-                reason: e.to_string(),
-            })?;
+        let (sanitized_user, classification) =
+            guard
+                .check_and_sanitize(user_prompt, provider_id)
+                .map_err(|e| agent_common::error::AppError::EgressBlocked {
+                    reason: e.to_string(),
+                })?;
 
         let sanitized_system = guard.classifier().sanitize(system_prompt);
 
@@ -279,8 +292,12 @@ impl MockLlmProvider {
 #[async_trait]
 impl LlmProvider for MockLlmProvider {
     async fn complete(&self, _request: LlmCompletionRequest) -> AppResult<LlmCompletionResponse> {
-        let idx = self.call_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let content = self.responses.get(idx % self.responses.len())
+        let idx = self
+            .call_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let content = self
+            .responses
+            .get(idx % self.responses.len())
             .cloned()
             .unwrap_or_default();
 
@@ -367,7 +384,10 @@ mod tests {
         let llm = MockLlmProvider::with_response("Analysis result");
         let ctx = MockAgentContext::new(llm);
 
-        let result = ctx.call_llm("You are an analyst", "Analyze this data").await.unwrap();
+        let result = ctx
+            .call_llm("You are an analyst", "Analyze this data")
+            .await
+            .unwrap();
         assert_eq!(result, "Analysis result");
     }
 
@@ -376,11 +396,14 @@ mod tests {
         let llm = MockLlmProvider::with_response("Contextual result");
         let ctx = MockAgentContext::new(llm);
 
-        let result = ctx.call_llm_with_context(
-            "You are an analyst",
-            "Context: revenue=1000",
-            "What is the revenue?"
-        ).await.unwrap();
+        let result = ctx
+            .call_llm_with_context(
+                "You are an analyst",
+                "Context: revenue=1000",
+                "What is the revenue?",
+            )
+            .await
+            .unwrap();
         assert_eq!(result, "Contextual result");
     }
 
@@ -407,9 +430,15 @@ mod tests {
     #[test]
     fn test_custom_overrides() {
         let mut config = AgentConfig::default();
-        config.custom.insert("model".to_string(), serde_json::json!("gpt-4o"));
-        config.custom.insert("temperature".to_string(), serde_json::json!(0.9));
-        config.custom.insert("max_tokens".to_string(), serde_json::json!(512));
+        config
+            .custom
+            .insert("model".to_string(), serde_json::json!("gpt-4o"));
+        config
+            .custom
+            .insert("temperature".to_string(), serde_json::json!(0.9));
+        config
+            .custom
+            .insert("max_tokens".to_string(), serde_json::json!(512));
 
         assert_eq!(config.model_override().as_deref(), Some("gpt-4o"));
         assert!((config.effective_temperature() - 0.9).abs() < 0.001);
@@ -477,10 +506,10 @@ mod tests {
             DataClassification::L3MinimumRequired,
         );
 
-        let result = ctx.call_llm(
-            "You are an analyst",
-            "Contact user@example.com for details",
-        ).await.unwrap();
+        let result = ctx
+            .call_llm("You are an analyst", "Contact user@example.com for details")
+            .await
+            .unwrap();
         assert_eq!(result, "Analysis result");
 
         let manifest = ctx.last_egress_manifest().unwrap();
@@ -496,10 +525,13 @@ mod tests {
             DataClassification::L3MinimumRequired,
         );
 
-        let result = ctx.call_llm(
-            "You are an analyst",
-            "Use api_key=sk-abc123def456ghi789jkl0 to authenticate",
-        ).await.unwrap();
+        let result = ctx
+            .call_llm(
+                "You are an analyst",
+                "Use api_key=sk-abc123def456ghi789jkl0 to authenticate",
+            )
+            .await
+            .unwrap();
         assert_eq!(result, "Analysis result");
 
         let manifest = ctx.last_egress_manifest().unwrap();

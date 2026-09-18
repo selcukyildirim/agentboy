@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
@@ -136,8 +138,16 @@ impl Agent for CashFlowForecastAgent {
              Monthly Trend:\n{}\n\n\
              Category Breakdown:\n{}\n\n\
              Provide cash flow analysis, liquidity assessment, and recommendations.",
-            opening_balance, inflows, outflows, net_cashflow, ending_balance,
-            if months_of_runway.is_infinite() { 999.0 } else { months_of_runway },
+            opening_balance,
+            inflows,
+            outflows,
+            net_cashflow,
+            ending_balance,
+            if months_of_runway.is_infinite() {
+                999.0
+            } else {
+                months_of_runway
+            },
             lowest_month_balance,
             serde_json::to_string_pretty(&monthly).unwrap_or_default(),
             serde_json::to_string_pretty(&by_category).unwrap_or_default(),
@@ -175,7 +185,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response("Cash flow is healthy with 6 months runway. Consider building reserves."))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            "Cash flow is healthy with 6 months runway. Consider building reserves.",
+        ))
     }
 
     #[tokio::test]

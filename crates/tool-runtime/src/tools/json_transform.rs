@@ -1,8 +1,8 @@
-use async_trait::async_trait;
+use crate::manifest::ToolManifest;
+use crate::tool::Tool;
 use agent_common::error::{AppError, AppResult};
 use agent_common::types::ToolRisk;
-use crate::tool::Tool;
-use crate::manifest::ToolManifest;
+use async_trait::async_trait;
 
 pub struct JsonTransform;
 
@@ -167,7 +167,9 @@ mod tests {
     fn test_filter_keys() {
         let transform = JsonTransform::new();
         let input = serde_json::json!({"a": 1, "b": 2, "c": 3});
-        let filtered = transform.filter_keys(&input, &["a".to_string(), "c".to_string()]).unwrap();
+        let filtered = transform
+            .filter_keys(&input, &["a".to_string(), "c".to_string()])
+            .unwrap();
         assert!(filtered["a"].is_number());
         assert!(filtered["c"].is_number());
         assert!(filtered.get("b").is_none());

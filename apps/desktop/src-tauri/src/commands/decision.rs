@@ -165,7 +165,11 @@ pub async fn get_recommendation(
         confidence,
         alternatives: vec![],
         evidence_summary: vec![],
-        missing_info: report.missing_required.iter().map(|m| m.key.clone()).collect(),
+        missing_info: report
+            .missing_required
+            .iter()
+            .map(|m| m.key.clone())
+            .collect(),
         risks: vec![],
         created_at: chrono::Utc::now().to_rfc3339(),
     };
@@ -176,8 +180,7 @@ pub async fn get_recommendation(
         tracing::warn!(error = %e, "Failed to save decision memory");
     }
 
-    serde_json::to_value(serde_json::json!({ "recommendation": rec }))
-        .map_err(|e| e.to_string())
+    serde_json::to_value(serde_json::json!({ "recommendation": rec })).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

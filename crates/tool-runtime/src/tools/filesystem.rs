@@ -1,10 +1,10 @@
-use std::path::{Path, PathBuf};
-use std::fs;
-use async_trait::async_trait;
+use crate::manifest::ToolManifest;
+use crate::tool::Tool;
 use agent_common::error::{AppError, AppResult};
 use agent_common::types::ToolRisk;
-use crate::tool::Tool;
-use crate::manifest::ToolManifest;
+use async_trait::async_trait;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 pub struct FilesystemReadTool {
     allowed_dirs: Vec<PathBuf>,
@@ -16,12 +16,13 @@ impl FilesystemReadTool {
     }
 
     fn validate_path(&self, path: &str) -> AppResult<PathBuf> {
-        let canonical = Path::new(path)
-            .canonicalize()
-            .map_err(|e| AppError::ToolPermissionDenied {
-                tool: "filesystem.read".to_string(),
-                reason: e.to_string(),
-            })?;
+        let canonical =
+            Path::new(path)
+                .canonicalize()
+                .map_err(|e| AppError::ToolPermissionDenied {
+                    tool: "filesystem.read".to_string(),
+                    reason: e.to_string(),
+                })?;
 
         for dir in &self.allowed_dirs {
             if let Ok(dir_canonical) = dir.canonicalize() {
@@ -60,8 +61,8 @@ impl Tool for FilesystemReadTool {
 
         let canonical = self.validate_path(path)?;
 
-        let content = fs::read_to_string(&canonical)
-            .map_err(|e| AppError::ToolExecutionFailed {
+        let content =
+            fs::read_to_string(&canonical).map_err(|e| AppError::ToolExecutionFailed {
                 tool: "filesystem.read".to_string(),
                 reason: e.to_string(),
             })?;
@@ -91,9 +92,9 @@ impl FilesystemWriteTool {
                 for dir in &self.allowed_dirs {
                     if let Ok(dir_canonical) = dir.canonicalize() {
                         if parent_canonical.starts_with(&dir_canonical) {
-                            return path_obj
-                                .canonicalize()
-                                .or_else(|_| Ok(parent_canonical.join(path_obj.file_name().unwrap_or_default())));
+                            return path_obj.canonicalize().or_else(|_| {
+                                Ok(parent_canonical.join(path_obj.file_name().unwrap_or_default()))
+                            });
                         }
                     }
                 }
@@ -133,18 +134,16 @@ impl Tool for FilesystemWriteTool {
         let canonical = self.validate_path(path)?;
 
         if let Some(parent) = canonical.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| AppError::ToolExecutionFailed {
-                    tool: "filesystem.write".to_string(),
-                    reason: e.to_string(),
-                })?;
-        }
-
-        fs::write(&canonical, content)
-            .map_err(|e| AppError::ToolExecutionFailed {
+            fs::create_dir_all(parent).map_err(|e| AppError::ToolExecutionFailed {
                 tool: "filesystem.write".to_string(),
                 reason: e.to_string(),
             })?;
+        }
+
+        fs::write(&canonical, content).map_err(|e| AppError::ToolExecutionFailed {
+            tool: "filesystem.write".to_string(),
+            reason: e.to_string(),
+        })?;
 
         Ok(serde_json::json!({
             "path": canonical.to_string_lossy(),

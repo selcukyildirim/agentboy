@@ -35,7 +35,11 @@ async fn golden_bank_reconciliation() {
     assert!(result["matched_count"].as_u64().unwrap() >= 7);
     assert!(result["unmatched_bank_count"].as_u64().unwrap() >= 2);
     let total = result["summary"]["total_bank_amount"].as_f64().unwrap();
-    assert!((total - 26552.00).abs() < 0.01, "unexpected total: {}", total);
+    assert!(
+        (total - 26552.00).abs() < 0.01,
+        "unexpected total: {}",
+        total
+    );
     assert!(result["llm_analysis"].as_str().is_some());
 }
 
@@ -49,7 +53,11 @@ async fn golden_expense_analyst() {
     });
 
     let result = agent.execute_with_context(input, &ctx).await.unwrap();
-    assert!(result.get("summary").is_some() || result.get("total").is_some() || result.get("by_category").is_some());
+    assert!(
+        result.get("summary").is_some()
+            || result.get("total").is_some()
+            || result.get("by_category").is_some()
+    );
 }
 
 #[tokio::test]
@@ -67,7 +75,11 @@ async fn golden_supplier_comparison() {
 
     let result = agent.execute_with_context(input, &ctx).await.unwrap();
     assert!(result.is_object());
-    assert!(result.get("ranking").is_some() || result.get("suppliers").is_some() || result.get("recommendation").is_some());
+    assert!(
+        result.get("ranking").is_some()
+            || result.get("suppliers").is_some()
+            || result.get("recommendation").is_some()
+    );
 }
 
 #[tokio::test]

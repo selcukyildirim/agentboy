@@ -7,12 +7,7 @@ impl EmbeddingCache {
         Self
     }
 
-    pub fn cache_key(
-        &self,
-        content_hash_val: &str,
-        model: &str,
-        chunk_version: &str,
-    ) -> String {
+    pub fn cache_key(&self, content_hash_val: &str, model: &str, chunk_version: &str) -> String {
         let input = format!("{}:{}:{}", content_hash_val, model, chunk_version);
         content_hash::content_hash(input.as_bytes())
     }

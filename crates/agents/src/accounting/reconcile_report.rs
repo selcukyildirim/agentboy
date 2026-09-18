@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
@@ -21,9 +23,15 @@ impl Agent for ReconcileReportAgent {
             version: "2.0.0".to_string(),
             name: "Reconcile Report".to_string(),
             department: "Accounting".to_string(),
-            description: "Generate reconciliation report across multiple accounts, flag unresolved items".to_string(),
+            description:
+                "Generate reconciliation report across multiple accounts, flag unresolved items"
+                    .to_string(),
             tier: AgentTier::Free,
-            skills: vec!["spreadsheet.parse".to_string(), "spreadsheet.analyze".to_string(), "llm.analysis".to_string()],
+            skills: vec![
+                "spreadsheet.parse".to_string(),
+                "spreadsheet.analyze".to_string(),
+                "llm.analysis".to_string(),
+            ],
             permissions: AgentPermissions {
                 filesystem_read: true,
                 filesystem_write: false,
@@ -36,9 +44,12 @@ impl Agent for ReconcileReportAgent {
             rag_enabled: false,
             output_schema: None,
             max_cost_usd: None,
-            input_schema: vec![
-                InputField::new("accounts", "Accounts", InputKind::File, true),
-            ],
+            input_schema: vec![InputField::new(
+                "accounts",
+                "Accounts",
+                InputKind::File,
+                true,
+            )],
         }
     }
 

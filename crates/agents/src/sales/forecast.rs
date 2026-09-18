@@ -1,14 +1,18 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
 pub struct SalesForecastAgent;
 
 impl SalesForecastAgent {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[async_trait::async_trait]
@@ -33,9 +37,15 @@ impl Agent for SalesForecastAgent {
         }
     }
 
-    fn supports_context(&self) -> bool { true }
+    fn supports_context(&self) -> bool {
+        true
+    }
 
-    async fn execute_with_context(&self, input: serde_json::Value, ctx: &dyn AgentContext) -> AppResult<serde_json::Value> {
+    async fn execute_with_context(
+        &self,
+        input: serde_json::Value,
+        ctx: &dyn AgentContext,
+    ) -> AppResult<serde_json::Value> {
         let deals_csv = input["deals"]
             .as_str()
             .ok_or_else(|| AppError::Validation("Missing 'deals' CSV".to_string()))?;
@@ -45,19 +55,34 @@ impl Agent for SalesForecastAgent {
             return Err(AppError::Validation("No deals found".to_string()));
         }
 
-        let total_value: f64 = deals.iter().map(|r| csv_util::record_get_f64(r, "value")).sum();
-        let weighted_value: f64 = deals.iter().map(|r| {
-            let value = csv_util::record_get_f64(r, "value");
-            let probability = csv_util::record_get_f64(r, "probability");
-            value * probability
-        }).sum();
+        let total_value: f64 = deals
+            .iter()
+            .map(|r| csv_util::record_get_f64(r, "value"))
+            .sum();
+        let weighted_value: f64 = deals
+            .iter()
+            .map(|r| {
+                let value = csv_util::record_get_f64(r, "value");
+                let probability = csv_util::record_get_f64(r, "probability");
+                value * probability
+            })
+            .sum();
 
-        let won: Vec<_> = deals.iter().filter(|r| csv_util::record_get_str(r, "stage") == "won").collect();
-        let lost: Vec<_> = deals.iter().filter(|r| csv_util::record_get_str(r, "stage") == "lost").collect();
-        let active: Vec<_> = deals.iter().filter(|r| {
-            let s = csv_util::record_get_str(r, "stage");
-            s != "won" && s != "lost"
-        }).collect();
+        let won: Vec<_> = deals
+            .iter()
+            .filter(|r| csv_util::record_get_str(r, "stage") == "won")
+            .collect();
+        let lost: Vec<_> = deals
+            .iter()
+            .filter(|r| csv_util::record_get_str(r, "stage") == "lost")
+            .collect();
+        let active: Vec<_> = deals
+            .iter()
+            .filter(|r| {
+                let s = csv_util::record_get_str(r, "stage");
+                s != "won" && s != "lost"
+            })
+            .collect();
 
         let win_rate = if !won.is_empty() || !lost.is_empty() {
             won.len() as f64 / (won.len() + lost.len()) as f64
@@ -65,10 +90,19 @@ impl Agent for SalesForecastAgent {
             0.0
         };
 
-        let avg_deal_size = if !deals.is_empty() { total_value / deals.len() as f64 } else { 0.0 };
+        let avg_deal_size = if !deals.is_empty() {
+            total_value / deals.len() as f64
+        } else {
+            0.0
+        };
         let avg_win_deal = if !won.is_empty() {
-            won.iter().map(|r| csv_util::record_get_f64(r, "value")).sum::<f64>() / won.len() as f64
-        } else { 0.0 };
+            won.iter()
+                .map(|r| csv_util::record_get_f64(r, "value"))
+                .sum::<f64>()
+                / won.len() as f64
+        } else {
+            0.0
+        };
 
         let system_prompt = "You are a sales forecast analyst. Analyze pipeline and provide revenue forecast. Be concise.";
         let user_prompt = format!(
@@ -93,7 +127,11 @@ impl Agent for SalesForecastAgent {
     }
 }
 
-impl Default for SalesForecastAgent { fn default() -> Self { Self::new() } }
+impl Default for SalesForecastAgent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -101,7 +139,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response("Pipeline is healthy. Expect 80% of weighted forecast."))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            "Pipeline is healthy. Expect 80% of weighted forecast.",
+        ))
     }
 
     #[tokio::test]
@@ -110,7 +150,10 @@ mod tests {
         let input = serde_json::json!({
             "deals": "deal_id,value,probability,stage\nD1,10000,0.7,proposal\nD2,5000,0.3,discovery\nD3,20000,1.0,won\nD4,8000,0.0,lost"
         });
-        let result = SalesForecastAgent::new().execute_with_context(input, &ctx).await.unwrap();
+        let result = SalesForecastAgent::new()
+            .execute_with_context(input, &ctx)
+            .await
+            .unwrap();
         assert_eq!(result["summary"]["won_deals"], 1);
         assert_eq!(result["summary"]["lost_deals"], 1);
         assert!(result["summary"]["weighted_forecast"].as_f64().unwrap() > 0.0);
@@ -120,13 +163,19 @@ mod tests {
     async fn test_no_deals() {
         let ctx = make_ctx();
         let input = serde_json::json!({ "deals": "" });
-        assert!(SalesForecastAgent::new().execute_with_context(input, &ctx).await.is_err());
+        assert!(SalesForecastAgent::new()
+            .execute_with_context(input, &ctx)
+            .await
+            .is_err());
     }
 
     #[tokio::test]
     async fn test_missing_input() {
         let ctx = make_ctx();
-        assert!(SalesForecastAgent::new().execute_with_context(serde_json::json!({}), &ctx).await.is_err());
+        assert!(SalesForecastAgent::new()
+            .execute_with_context(serde_json::json!({}), &ctx)
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -135,7 +184,10 @@ mod tests {
         let input = serde_json::json!({
             "deals": "deal_id,value,probability,stage\nD1,10000,0.5,won\nD2,5000,0.5,won\nD3,8000,0.5,lost"
         });
-        let result = SalesForecastAgent::new().execute_with_context(input, &ctx).await.unwrap();
+        let result = SalesForecastAgent::new()
+            .execute_with_context(input, &ctx)
+            .await
+            .unwrap();
         assert_eq!(result["summary"]["win_rate"], "66.7%");
     }
 
@@ -145,7 +197,10 @@ mod tests {
         let input = serde_json::json!({
             "deals": "deal_id,value,probability,stage\nD1,1000,0.5,proposal"
         });
-        let result = SalesForecastAgent::new().execute_with_context(input, &ctx).await.unwrap();
+        let result = SalesForecastAgent::new()
+            .execute_with_context(input, &ctx)
+            .await
+            .unwrap();
         assert!(result["llm_analysis"].as_str().is_some());
     }
 

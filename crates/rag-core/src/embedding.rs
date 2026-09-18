@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use agent_common::error::AppResult;
+use async_trait::async_trait;
 
 #[async_trait]
 pub trait EmbeddingProvider: Send + Sync {

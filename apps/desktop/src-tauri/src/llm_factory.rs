@@ -27,12 +27,11 @@ impl ProviderSpec {
 }
 
 fn require_key(provider: &str, key: Option<String>) -> AppResult<String> {
-    key.filter(|k| !k.trim().is_empty()).ok_or_else(|| {
-        AppError::Provider {
+    key.filter(|k| !k.trim().is_empty())
+        .ok_or_else(|| AppError::Provider {
             provider: provider.to_string(),
             message: "API key not configured".to_string(),
-        }
-    })
+        })
 }
 
 /// Build an agent-runtime LLM provider from a provider spec.
@@ -43,9 +42,10 @@ pub fn build(spec: &ProviderSpec) -> AppResult<Arc<dyn AgentLlmProvider>> {
         "openai" => {
             let key = require_key(provider, spec.api_key.clone())?;
             match spec.base_url.as_deref().filter(|b| !b.trim().is_empty()) {
-                Some(base) => Arc::new(
-                    provider_openai::adapter::OpenAiProvider::with_base_url(key, base.to_string()),
-                ),
+                Some(base) => Arc::new(provider_openai::adapter::OpenAiProvider::with_base_url(
+                    key,
+                    base.to_string(),
+                )),
                 None => Arc::new(provider_openai::adapter::OpenAiProvider::new(key)),
             }
         }

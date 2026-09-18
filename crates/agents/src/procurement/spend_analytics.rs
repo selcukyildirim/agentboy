@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::agent::Agent;
 use agent_runtime::context::AgentContext;
-use agent_runtime::manifest::{AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind};
+use agent_runtime::manifest::{
+    AgentManifest, AgentPermissions, AgentTier, ExecutionLimits, InputField, InputKind,
+};
 
 use crate::csv_util;
 
@@ -60,13 +62,22 @@ impl Agent for SpendAnalyticsAgent {
             return Err(AppError::Validation("No spend records found".to_string()));
         }
 
-        let total_spend: f64 = records.iter().map(|r| csv_util::record_get_f64(r, "amount")).sum();
+        let total_spend: f64 = records
+            .iter()
+            .map(|r| csv_util::record_get_f64(r, "amount"))
+            .sum();
         let by_category = csv_util::sum_by(&records, "category", "amount");
         let by_vendor = csv_util::sum_by(&records, "vendor", "amount");
 
-        let top_vendor = by_vendor.iter().max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal));
+        let top_vendor = by_vendor
+            .iter()
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal));
         let vendor_concentration = if let Some((_, amount)) = top_vendor {
-            if total_spend > 0.0 { amount / total_spend } else { 0.0 }
+            if total_spend > 0.0 {
+                amount / total_spend
+            } else {
+                0.0
+            }
         } else {
             0.0
         };
@@ -78,16 +89,31 @@ impl Agent for SpendAnalyticsAgent {
         };
 
         let unique_vendors = by_vendor.len();
-        let consolidation_potential = if unique_vendors > 3 { "high" } else if unique_vendors > 1 { "medium" } else { "low" };
+        let consolidation_potential = if unique_vendors > 3 {
+            "high"
+        } else if unique_vendors > 1 {
+            "medium"
+        } else {
+            "low"
+        };
 
-        let mut category_list: Vec<serde_json::Value> = by_category.iter().map(|(cat, amt)| {
-            serde_json::json!({
-                "category": cat,
-                "total": amt,
-                "percentage": if total_spend > 0.0 { amt / total_spend * 100.0 } else { 0.0 },
+        let mut category_list: Vec<serde_json::Value> = by_category
+            .iter()
+            .map(|(cat, amt)| {
+                serde_json::json!({
+                    "category": cat,
+                    "total": amt,
+                    "percentage": if total_spend > 0.0 { amt / total_spend * 100.0 } else { 0.0 },
+                })
             })
-        }).collect();
-        category_list.sort_by(|a, b| b["total"].as_f64().unwrap_or(0.0).partial_cmp(&a["total"].as_f64().unwrap_or(0.0)).unwrap_or(std::cmp::Ordering::Equal));
+            .collect();
+        category_list.sort_by(|a, b| {
+            b["total"]
+                .as_f64()
+                .unwrap_or(0.0)
+                .partial_cmp(&a["total"].as_f64().unwrap_or(0.0))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let system_prompt = "You are a procurement spend analyst. Analyze spend patterns and identify cost optimization opportunities. Be concise.";
         let user_prompt = format!(
@@ -127,7 +153,9 @@ mod tests {
     use agent_runtime::{MockAgentContext, MockLlmProvider};
 
     fn make_ctx() -> MockAgentContext {
-        MockAgentContext::new(MockLlmProvider::with_response("Consider consolidating vendors for 15% savings."))
+        MockAgentContext::new(MockLlmProvider::with_response(
+            "Consider consolidating vendors for 15% savings.",
+        ))
     }
 
     #[tokio::test]

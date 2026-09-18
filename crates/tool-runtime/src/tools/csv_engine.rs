@@ -30,7 +30,8 @@ impl CsvEngine {
         rows.push(headers.iter().map(|h| h.to_string()).collect());
 
         for record in rdr.records() {
-            let record = record.map_err(|e| AppError::Validation(format!("CSV record error: {e}")))?;
+            let record =
+                record.map_err(|e| AppError::Validation(format!("CSV record error: {e}")))?;
             rows.push(record.iter().map(|f| f.to_string()).collect());
         }
 
@@ -132,7 +133,9 @@ impl Tool for CsvEngine {
                 let filtered = self.filter(content, column, value)?;
                 Ok(serde_json::json!({ "content": filtered }))
             }
-            _ => Err(AppError::Validation(format!("Unknown operation: {operation}"))),
+            _ => Err(AppError::Validation(format!(
+                "Unknown operation: {operation}"
+            ))),
         }
     }
 }
@@ -143,7 +146,9 @@ mod tests {
 
     #[test]
     fn test_csv_parse() {
-        let rows = CsvEngine::new().parse("name,age\nAlice,30\nBob,25").unwrap();
+        let rows = CsvEngine::new()
+            .parse("name,age\nAlice,30\nBob,25")
+            .unwrap();
         assert_eq!(rows.len(), 3);
         assert_eq!(rows[0], vec!["name", "age"]);
         assert_eq!(rows[1], vec!["Alice", "30"]);
@@ -159,7 +164,9 @@ mod tests {
 
     #[test]
     fn test_csv_to_json() {
-        let json = CsvEngine::new().to_json("name,age\nAlice,30\nBob,25").unwrap();
+        let json = CsvEngine::new()
+            .to_json("name,age\nAlice,30\nBob,25")
+            .unwrap();
         assert!(json.is_array());
         assert_eq!(json.as_array().unwrap().len(), 2);
         assert_eq!(json[0]["name"], "Alice");

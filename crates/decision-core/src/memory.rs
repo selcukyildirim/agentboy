@@ -56,7 +56,10 @@ impl DecisionMemory {
         Ok(id)
     }
 
-    pub async fn get(&self, id: &str) -> Result<Option<DecisionRecord>, agent_common::error::AppError> {
+    pub async fn get(
+        &self,
+        id: &str,
+    ) -> Result<Option<DecisionRecord>, agent_common::error::AppError> {
         let row: Option<(String, String, String, String, String)> = sqlx::query_as(
             "SELECT id, decision_type, context_json, recommendation_json, created_at FROM decision_memory WHERE id = ?"
         )
@@ -92,7 +95,7 @@ impl DecisionMemory {
     ) -> Result<Vec<DecisionRecord>, agent_common::error::AppError> {
         let rows: Vec<(String, String, String, String, String)> = sqlx::query_as(
             "SELECT id, decision_type, context_json, recommendation_json, created_at
-             FROM decision_memory WHERE decision_type = ? ORDER BY created_at DESC LIMIT ?"
+             FROM decision_memory WHERE decision_type = ? ORDER BY created_at DESC LIMIT ?",
         )
         .bind(decision_type)
         .bind(limit)
@@ -129,7 +132,7 @@ impl DecisionMemory {
             "SELECT id, decision_type, context_json, recommendation_json, created_at
              FROM decision_memory
              WHERE recommendation_json LIKE ?
-             ORDER BY created_at DESC LIMIT ?"
+             ORDER BY created_at DESC LIMIT ?",
         )
         .bind(format!("%{}%", query))
         .bind(limit)
@@ -175,7 +178,7 @@ mod tests {
                 recommendation_json TEXT NOT NULL,
                 outcome_json TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
-            )"
+            )",
         )
         .execute(db.pool())
         .await
@@ -184,7 +187,12 @@ mod tests {
         let memory = DecisionMemory::new(db.pool().clone());
 
         let mut builder = crate::context::DecisionContextBuilder::new(DecisionType::Procurement);
-        builder.add_fact("vendor_quotes", serde_json::json!([{"vendor": "A"}]), "doc1", 0.9);
+        builder.add_fact(
+            "vendor_quotes",
+            serde_json::json!([{"vendor": "A"}]),
+            "doc1",
+            0.9,
+        );
         let context = builder.build();
 
         let rec = crate::recommendation::Recommendation::new("procurement", "Choose Vendor A");
