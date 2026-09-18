@@ -6,16 +6,21 @@ use agent_runtime::context::AgentContext;
 use agent_runtime::state::{ExecutionState, ExecutionStep};
 use audit_core::store::SqliteAuditStore;
 use skill_sdk::registry::SkillRegistry;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
+
+/// Maximum number of completed executions retained in memory. Older terminal
+/// executions are evicted to keep memory bounded over long sessions.
+const MAX_RETAINED_EXECUTIONS: usize = 1000;
 
 pub struct Orchestrator {
     executions: Arc<RwLock<HashMap<String, ExecutionContext>>>,
     steps: Arc<RwLock<HashMap<String, Vec<ExecutionStep>>>>,
     states: Arc<RwLock<HashMap<String, ExecutionState>>>,
-    cancelled: Arc<RwLock<Vec<String>>>,
+    cancelled: Arc<RwLock<HashSet<String>>>,
+    order: Arc<RwLock<VecDeque<String>>>,
 }
 
 impl Orchestrator {
@@ -25,7 +30,34 @@ impl Orchestrator {
             executions: Arc::new(RwLock::new(HashMap::new())),
             steps: Arc::new(RwLock::new(HashMap::new())),
             states: Arc::new(RwLock::new(HashMap::new())),
-            cancelled: Arc::new(RwLock::new(Vec::new())),
+            cancelled: Arc::new(RwLock::new(HashSet::new())),
+            order: Arc::new(RwLock::new(VecDeque::new())),
+        }
+    }
+
+    async fn evict_old(&self) {
+        let mut order = self.order.write().await;
+        while order.len() > MAX_RETAINED_EXECUTIONS {
+            if let Some(id) = order.pop_front() {
+                let terminal = {
+                    let states = self.states.read().await;
+                    states
+                        .get(&id)
+                        .map(|s| s.is_terminal())
+                        .unwrap_or(true)
+                };
+                if terminal {
+                    self.executions.write().await.remove(&id);
+                    self.steps.write().await.remove(&id);
+                    self.states.write().await.remove(&id);
+                } else {
+                    // Keep non-terminal at the back; avoid an infinite loop.
+                    order.push_back(id);
+                    break;
+                }
+            } else {
+                break;
+            }
         }
     }
 
@@ -55,6 +87,12 @@ impl Orchestrator {
 
         let mut steps = self.steps.write().await;
         steps.insert(execution_id.to_string(), Vec::new());
+
+        {
+            let mut order = self.order.write().await;
+            order.push_back(execution_id.to_string());
+        }
+        self.evict_old().await;
 
         tracing::info!(
             execution_id = %execution_id,
@@ -96,7 +134,7 @@ impl Orchestrator {
     pub async fn cancel(&self, execution_id: ExecutionId, reason: &str) -> AppResult<()> {
         let id = execution_id.to_string();
         let mut cancelled = self.cancelled.write().await;
-        cancelled.push(id.clone());
+        cancelled.insert(id.clone());
 
         let mut states = self.states.write().await;
         states.insert(

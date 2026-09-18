@@ -1,7 +1,8 @@
 use agent_common::error::{AppError, AppResult};
 use agent_runtime::context::LlmProvider as AgentLlmProvider;
 use llm_gateway::gateway::LlmProvider as GatewayLlmProvider;
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::provider_bridge::GatewayProviderBridge;
 
@@ -26,6 +27,26 @@ impl ProviderSpec {
     }
 }
 
+fn provider_cache() -> &'static Mutex<HashMap<String, Arc<dyn AgentLlmProvider>>> {
+    static C: OnceLock<Mutex<HashMap<String, Arc<dyn AgentLlmProvider>>>> = OnceLock::new();
+    C.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Drop cached provider instances (e.g. when credentials change).
+pub fn clear_cache() {
+    agent_common::sync::lock(provider_cache()).clear();
+}
+
+fn spec_fingerprint(spec: &ProviderSpec) -> String {
+    format!(
+        "{}|{}|{}|{}",
+        spec.provider,
+        spec.base_url.as_deref().unwrap_or(""),
+        spec.model,
+        spec.api_key.as_deref().unwrap_or("")
+    )
+}
+
 fn require_key(provider: &str, key: Option<String>) -> AppResult<String> {
     key.filter(|k| !k.trim().is_empty())
         .ok_or_else(|| AppError::Provider {
@@ -34,8 +55,17 @@ fn require_key(provider: &str, key: Option<String>) -> AppResult<String> {
         })
 }
 
-/// Build an agent-runtime LLM provider from a provider spec.
+/// Build (or return a cached) agent-runtime LLM provider for a spec.
 pub fn build(spec: &ProviderSpec) -> AppResult<Arc<dyn AgentLlmProvider>> {
+    let key = spec_fingerprint(spec);
+    if let Some(provider) = provider_cache()
+        .lock()
+        .ok()
+        .and_then(|c| c.get(&key).cloned())
+    {
+        return Ok(provider);
+    }
+
     let provider = spec.provider.as_str();
 
     let inner: Arc<dyn GatewayLlmProvider> = match provider {
@@ -84,10 +114,13 @@ pub fn build(spec: &ProviderSpec) -> AppResult<Arc<dyn AgentLlmProvider>> {
         }
     };
 
-    Ok(Arc::new(GatewayProviderBridge::new(
-        inner,
-        spec.model.clone(),
-    )))
+    let provider = Arc::new(GatewayProviderBridge::new(inner, spec.model.clone()));
+
+    if let Ok(mut cache) = provider_cache().lock() {
+        cache.insert(key, provider.clone());
+    }
+
+    Ok(provider)
 }
 
 #[cfg(test)]

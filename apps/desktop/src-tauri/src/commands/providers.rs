@@ -85,6 +85,7 @@ pub async fn active_spec_cached() -> Option<(String, Option<String>, Option<Stri
 
 pub fn invalidate_spec_cache() {
     *agent_common::sync::lock(spec_cache()) = None;
+    crate::llm_factory::clear_cache();
 }
 
 #[tauri::command]
