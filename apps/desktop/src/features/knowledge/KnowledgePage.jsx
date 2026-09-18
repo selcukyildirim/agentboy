@@ -105,7 +105,9 @@ export function KnowledgePage({ documents }) {
                 {results.map((r) => (
                   <div className="resultItem" key={r.chunk_id}>
                     <strong>
-                      {r.document_id?.slice(0, 8)} · {t("runs.cost")}: {r.score}
+                      {r.document_name || r.document_id?.slice(0, 8)}
+                      {r.section ? ` · ${r.section}` : ""}
+                      {r.page ? ` · s.${r.page}` : ""}
                     </strong>
                     <p>{r.content?.slice(0, 320)}</p>
                   </div>

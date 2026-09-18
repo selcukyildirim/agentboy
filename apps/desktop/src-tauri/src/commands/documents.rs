@@ -1,5 +1,11 @@
+use document_parser::parser::{extract_text, AutoParser, DocumentParser};
+use rag_core::context_budget::ContextBudget;
+use rag_core::embedding::LocalEmbeddingProvider;
+use rag_core::injection::InjectionDefense;
+use rag_core::pipeline::RagPipeline;
 use serde::{Deserialize, Serialize};
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
+use tokio::sync::Mutex;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DocumentInfo {
@@ -12,81 +18,93 @@ pub struct DocumentInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct RagResult {
+pub struct RagCitation {
+    pub id: String,
+    pub document_id: String,
+    pub document_name: String,
+    pub section: Option<String>,
+    pub page: Option<u32>,
+    pub excerpt: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RagHit {
     pub chunk_id: String,
     pub document_id: String,
+    pub document_name: String,
+    pub section: Option<String>,
+    pub page: Option<u32>,
     pub content: String,
-    pub score: f64,
-    pub metadata: serde_json::Value,
 }
 
-fn get_documents() -> &'static Mutex<Vec<DocumentInfo>> {
-    static DOCUMENTS: OnceLock<Mutex<Vec<DocumentInfo>>> = OnceLock::new();
-    DOCUMENTS.get_or_init(|| Mutex::new(Vec::new()))
+struct KnowledgeState {
+    pipeline: RagPipeline,
+    documents: Vec<DocumentInfo>,
 }
 
-fn get_chunks() -> &'static Mutex<Vec<ChunkEntry>> {
-    static CHUNKS: OnceLock<Mutex<Vec<ChunkEntry>>> = OnceLock::new();
-    CHUNKS.get_or_init(|| Mutex::new(Vec::new()))
+impl KnowledgeState {
+    fn new() -> Self {
+        Self {
+            pipeline: RagPipeline::new(Box::new(LocalEmbeddingProvider::new(256)))
+                .with_chunk_size(512, 50)
+                .with_weights(0.6, 0.4),
+            documents: Vec::new(),
+        }
+    }
 }
 
-#[derive(Debug, Clone)]
-struct ChunkEntry {
-    chunk_id: String,
-    document_id: String,
-    content: String,
-    offset: usize,
+fn store() -> &'static Mutex<KnowledgeState> {
+    static S: OnceLock<Mutex<KnowledgeState>> = OnceLock::new();
+    S.get_or_init(|| Mutex::new(KnowledgeState::new()))
+}
+
+fn doc_name(state: &KnowledgeState, document_id: &str) -> String {
+    state
+        .documents
+        .iter()
+        .find(|d| d.id == document_id)
+        .map(|d| d.name.clone())
+        .unwrap_or_else(|| document_id.to_string())
 }
 
 #[tauri::command]
-pub fn list_documents() -> Vec<DocumentInfo> {
-    get_documents().lock().unwrap().clone()
+pub async fn list_documents() -> Result<Vec<DocumentInfo>, String> {
+    Ok(store().lock().await.documents.clone())
 }
 
 #[tauri::command]
-pub fn upload_document(name: String, content: Vec<u8>, content_type: String) -> Result<DocumentInfo, String> {
-    let text = String::from_utf8(content.clone())
-        .map_err(|e| format!("Invalid UTF-8 content: {}", e))?;
-
-    let chunk_size = 1000;
-    let chunks: Vec<String> = text
-        .chars()
-        .collect::<Vec<_>>()
-        .chunks(chunk_size)
-        .map(|c| c.iter().collect())
-        .collect();
-
-    let chunk_count = chunks.len().max(1);
+pub async fn upload_document(
+    name: String,
+    content: Vec<u8>,
+    content_type: String,
+) -> Result<DocumentInfo, String> {
+    // Real parsing via document-parser (PDF/DOCX/XLSX/CSV/JSON/XML/TXT/MD).
+    let parsed = AutoParser::new()
+        .parse(&content, &name)
+        .await
+        .map_err(|e| e.to_string())?;
+    let text = extract_text(&parsed);
     let doc_id = uuid::Uuid::new_v4().to_string();
 
-    let mut chunk_store = get_chunks().lock().unwrap();
-    for (i, chunk) in chunks.iter().enumerate() {
-        chunk_store.push(ChunkEntry {
-            chunk_id: format!("{}-{}", doc_id, i),
-            document_id: doc_id.clone(),
-            content: chunk.clone(),
-            offset: i * chunk_size,
-        });
-    }
+    let mut state = store().lock().await;
+    let ingest = state
+        .pipeline
+        .ingest(&doc_id, &text, &name)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let doc = DocumentInfo {
         id: doc_id.clone(),
         name: name.clone(),
         content_type,
         size_bytes: content.len() as u64,
-        chunk_count,
+        chunk_count: ingest.chunk_count,
         uploaded_at: chrono::Utc::now().to_rfc3339(),
     };
+    state.documents.push(doc.clone());
 
-    get_documents().lock().unwrap().push(doc.clone());
     crate::commands::health::record_document_indexed();
-
-    tracing::info!(
-        doc_id = %doc_id,
-        name = %name,
-        chunk_count = chunk_count,
-        "Document uploaded and chunked"
-    );
+    tracing::info!(doc_id = %doc_id, name = %name, chunks = ingest.chunk_count, "Document ingested");
 
     Ok(doc)
 }
@@ -94,47 +112,59 @@ pub fn upload_document(name: String, content: Vec<u8>, content_type: String) -> 
 #[tauri::command]
 pub async fn query_rag(query: String, top_k: Option<usize>) -> Result<serde_json::Value, String> {
     let k = top_k.unwrap_or(5);
-
     tracing::info!(query = %query, top_k = k, "RAG query from UI");
 
-    let chunks = get_chunks().lock().unwrap();
-    let query_lower = query.to_lowercase();
-    let query_words: Vec<&str> = query_lower.split_whitespace().collect();
+    let state = store().lock().await;
 
-    let mut scored: Vec<(f64, &ChunkEntry)> = chunks
+    let mut budget = ContextBudget::new(4000, 500);
+    let result = state
+        .pipeline
+        .query(&query, k, None, Some(&mut budget))
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Prompt-injection defense on retrieved context.
+    let defense = InjectionDefense::new();
+    let suspicious = defense.is_suspicious(&result.context_text);
+    let safe_context = if suspicious {
+        tracing::warn!("Suspicious content detected in retrieved context; sanitizing");
+        defense.sanitize(&result.context_text)
+    } else {
+        result.context_text.clone()
+    };
+
+    let hits: Vec<RagHit> = result
+        .chunks
         .iter()
-        .map(|chunk| {
-            let content_lower = chunk.content.to_lowercase();
-            let score: f64 = query_words
-                .iter()
-                .map(|word| {
-                    let count = content_lower.matches(word).count();
-                    count as f64
-                })
-                .sum();
-            (score, chunk)
+        .map(|c| RagHit {
+            chunk_id: c.chunk_id.clone(),
+            document_id: c.document_id.clone(),
+            document_name: doc_name(&state, &c.document_id),
+            section: c.metadata.heading.clone().or_else(|| c.metadata.section.clone()),
+            page: c.metadata.page,
+            content: c.content.clone(),
         })
-        .filter(|(score, _)| *score > 0.0)
         .collect();
 
-    scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-    scored.truncate(k);
-
-    let results: Vec<serde_json::Value> = scored
+    let citations: Vec<RagCitation> = result
+        .citations
         .iter()
-        .map(|(score, chunk)| {
-            serde_json::json!({
-                "chunk_id": chunk.chunk_id,
-                "document_id": chunk.document_id,
-                "content": chunk.content,
-                "score": score,
-            })
+        .map(|c| RagCitation {
+            id: c.id.clone(),
+            document_id: c.document_id.clone(),
+            document_name: c.document_name.clone(),
+            section: c.section.clone(),
+            page: c.page,
+            excerpt: c.excerpt.clone(),
         })
         .collect();
 
     Ok(serde_json::json!({
         "query": query,
-        "results": results,
-        "count": results.len(),
+        "count": hits.len(),
+        "results": hits,
+        "citations": citations,
+        "context_text": safe_context,
+        "injection_flagged": suspicious,
     }))
 }
