@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct PipelineHealthAgent;
 
 impl PipelineHealthAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -68,7 +69,7 @@ impl Agent for PipelineHealthAgent {
             return Err(AppError::Validation("No deals found".to_string()));
         }
 
-        let stages = vec![
+        let stages = [
             "discovery",
             "qualification",
             "proposal",

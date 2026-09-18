@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct FleetManagerAgent;
 impl FleetManagerAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -65,7 +66,7 @@ impl Agent for FleetManagerAgent {
             return Err(AppError::Validation("No vehicles".to_string()));
         }
 
-        let mut analysis: Vec<serde_json::Value> = vehicles.iter().map(|v| {
+        let analysis: Vec<serde_json::Value> = vehicles.iter().map(|v| {
             let mileage = csv_util::record_get_f64(v, "mileage_km");
             let fuel = csv_util::record_get_f64(v, "fuel_cost");
             let utilization = csv_util::record_get_f64(v, "utilization_pct");

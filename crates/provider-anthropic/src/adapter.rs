@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use async_trait::async_trait;
 use llm_gateway::gateway::LlmProvider;
-use llm_gateway::types::*;
+use llm_gateway::types::{
+    CompletionRequest, CompletionResponse, ModelInfo, ProviderCapabilities, Role, ToolCall, Usage,
+};
 
 pub struct AnthropicProvider {
     api_key: String,
@@ -9,6 +11,7 @@ pub struct AnthropicProvider {
 }
 
 impl AnthropicProvider {
+    #[must_use]
     pub fn new(api_key: String) -> Self {
         Self {
             api_key,
@@ -27,7 +30,7 @@ impl AnthropicProvider {
 
 #[async_trait]
 impl LlmProvider for AnthropicProvider {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         "anthropic"
     }
 

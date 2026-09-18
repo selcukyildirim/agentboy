@@ -6,6 +6,7 @@ pub struct AgentRegistry {
 }
 
 impl AgentRegistry {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             agents: HashMap::new(),
@@ -13,14 +14,16 @@ impl AgentRegistry {
     }
 
     pub fn register(&mut self, agent: Box<dyn Agent>) {
-        let id = agent.manifest().id.clone();
+        let id = agent.manifest().id;
         self.agents.insert(id, agent);
     }
 
+    #[must_use]
     pub fn get(&self, id: &str) -> Option<&dyn Agent> {
-        self.agents.get(id).map(|a| a.as_ref())
+        self.agents.get(id).map(std::convert::AsRef::as_ref)
     }
 
+    #[must_use]
     pub fn list(&self) -> Vec<String> {
         self.agents.keys().cloned().collect()
     }

@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct ComplianceCheckAgent;
 impl ComplianceCheckAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -65,7 +66,7 @@ impl Agent for ComplianceCheckAgent {
             return Err(AppError::Validation("No requirements".to_string()));
         }
 
-        let mut analysis: Vec<serde_json::Value> = reqs.iter().map(|r| {
+        let analysis: Vec<serde_json::Value> = reqs.iter().map(|r| {
             let met = csv_util::record_get_str(r, "status") == "met";
             let risk = csv_util::record_get_f64(r, "risk_score");
             let status = if met { "compliant" } else if risk > 0.7 { "critical_gap" } else { "gap" };

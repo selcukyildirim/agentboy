@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ConfidenceLevel {
     High,
     Medium,
@@ -9,24 +9,26 @@ pub enum ConfidenceLevel {
 }
 
 impl ConfidenceLevel {
+    #[must_use]
     pub fn from_score(score: f32) -> Self {
         if score >= 0.8 {
-            ConfidenceLevel::High
+            Self::High
         } else if score >= 0.5 {
-            ConfidenceLevel::Medium
+            Self::Medium
         } else if score >= 0.2 {
-            ConfidenceLevel::Low
+            Self::Low
         } else {
-            ConfidenceLevel::Insufficient
+            Self::Insufficient
         }
     }
 
-    pub fn score(&self) -> f32 {
+    #[must_use]
+    pub const fn score(&self) -> f32 {
         match self {
-            ConfidenceLevel::High => 0.9,
-            ConfidenceLevel::Medium => 0.65,
-            ConfidenceLevel::Low => 0.35,
-            ConfidenceLevel::Insufficient => 0.1,
+            Self::High => 0.9,
+            Self::Medium => 0.65,
+            Self::Low => 0.35,
+            Self::Insufficient => 0.1,
         }
     }
 }
@@ -46,6 +48,7 @@ pub struct ConfidenceFactor {
 }
 
 impl Confidence {
+    #[must_use]
     pub fn calculate(factors: Vec<ConfidenceFactor>) -> Self {
         let score: f32 =
             factors.iter().map(|f| f.contribution).sum::<f32>() / factors.len().max(1) as f32;
@@ -90,6 +93,7 @@ pub struct RecommendationSchema {
 }
 
 impl Recommendation {
+    #[must_use]
     pub fn new(decision_type: &str, recommendation: &str) -> Self {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
@@ -108,16 +112,19 @@ impl Recommendation {
         }
     }
 
+    #[must_use]
     pub fn with_confidence(mut self, confidence: Confidence) -> Self {
         self.confidence = confidence;
         self
     }
 
+    #[must_use]
     pub fn with_alternative(mut self, alternative: Alternative) -> Self {
         self.alternatives.push(alternative);
         self
     }
 
+    #[must_use]
     pub fn to_schema(&self) -> RecommendationSchema {
         RecommendationSchema {
             decision_type: self.decision_type.clone(),

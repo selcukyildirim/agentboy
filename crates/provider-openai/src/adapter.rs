@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use async_trait::async_trait;
 use llm_gateway::gateway::LlmProvider;
-use llm_gateway::types::*;
+use llm_gateway::types::{
+    CompletionRequest, CompletionResponse, ModelInfo, ProviderCapabilities, Role, ToolCall, Usage,
+};
 
 pub struct OpenAiProvider {
     api_key: String,
@@ -10,6 +12,7 @@ pub struct OpenAiProvider {
 }
 
 impl OpenAiProvider {
+    #[must_use]
     pub fn new(api_key: String) -> Self {
         Self {
             api_key,
@@ -18,6 +21,7 @@ impl OpenAiProvider {
         }
     }
 
+    #[must_use]
     pub fn with_base_url(api_key: String, base_url: String) -> Self {
         Self {
             api_key,
@@ -39,7 +43,7 @@ impl OpenAiProvider {
 
 #[async_trait]
 impl LlmProvider for OpenAiProvider {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         "openai"
     }
 

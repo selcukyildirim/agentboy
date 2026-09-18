@@ -7,7 +7,8 @@ pub struct ContextBudget {
 }
 
 impl ContextBudget {
-    pub fn new(max_tokens: usize, reserved_tokens: usize) -> Self {
+    #[must_use]
+    pub const fn new(max_tokens: usize, reserved_tokens: usize) -> Self {
         Self {
             max_tokens,
             reserved_tokens,
@@ -15,17 +16,19 @@ impl ContextBudget {
         }
     }
 
-    pub fn available(&self) -> usize {
+    #[must_use]
+    pub const fn available(&self) -> usize {
         self.max_tokens
             .saturating_sub(self.reserved_tokens)
             .saturating_sub(self.used_tokens)
     }
 
-    pub fn can_fit(&self, chunk: &Chunk) -> bool {
+    #[must_use]
+    pub const fn can_fit(&self, chunk: &Chunk) -> bool {
         chunk.token_estimate <= self.available()
     }
 
-    pub fn consume(&mut self, tokens: usize) -> bool {
+    pub const fn consume(&mut self, tokens: usize) -> bool {
         if tokens <= self.available() {
             self.used_tokens += tokens;
             true
@@ -45,15 +48,17 @@ impl ContextBudget {
         selected
     }
 
-    pub fn used(&self) -> usize {
+    #[must_use]
+    pub const fn used(&self) -> usize {
         self.used_tokens
     }
 
-    pub fn total(&self) -> usize {
+    #[must_use]
+    pub const fn total(&self) -> usize {
         self.max_tokens
     }
 
-    pub fn reset(&mut self) {
+    pub const fn reset(&mut self) {
         self.used_tokens = 0;
     }
 }

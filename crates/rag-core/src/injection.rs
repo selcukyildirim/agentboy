@@ -5,6 +5,7 @@ pub struct InjectionDefense {
 }
 
 impl InjectionDefense {
+    #[must_use]
     pub fn new() -> Self {
         let patterns = vec![
             Regex::new(r"(?i)ignore\s+(all\s+)?previous\s+instructions").unwrap(),
@@ -20,6 +21,7 @@ impl InjectionDefense {
         Self { patterns }
     }
 
+    #[must_use]
     pub fn detect(&self, text: &str) -> Vec<String> {
         self.patterns
             .iter()
@@ -33,10 +35,12 @@ impl InjectionDefense {
             .collect()
     }
 
+    #[must_use]
     pub fn is_suspicious(&self, text: &str) -> bool {
         !self.detect(text).is_empty()
     }
 
+    #[must_use]
     pub fn sanitize(&self, text: &str) -> String {
         let mut result = text.to_string();
         for pattern in &self.patterns {
@@ -45,6 +49,7 @@ impl InjectionDefense {
         result
     }
 
+    #[must_use]
     pub fn wrap_context(&self, user_content: &str, system_context: &str) -> String {
         format!(
             "<system_context>\n{}\n</system_context>\n<user_content>\n{}\n</user_content>",

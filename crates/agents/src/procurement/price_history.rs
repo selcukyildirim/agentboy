@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct PriceHistoryAgent;
 
 impl PriceHistoryAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -67,22 +68,22 @@ impl Agent for PriceHistoryAgent {
             .map(|r| csv_util::record_get_f64(r, "price"))
             .collect();
         let current_price = price_values.last().copied().unwrap_or(0.0);
-        let avg_price = if !price_values.is_empty() {
-            price_values.iter().sum::<f64>() / price_values.len() as f64
-        } else {
+        let avg_price = if price_values.is_empty() {
             0.0
+        } else {
+            price_values.iter().sum::<f64>() / price_values.len() as f64
         };
-        let min_price = price_values.iter().cloned().fold(f64::INFINITY, f64::min);
+        let min_price = price_values.iter().copied().fold(f64::INFINITY, f64::min);
         let max_price = price_values
             .iter()
-            .cloned()
+            .copied()
             .fold(f64::NEG_INFINITY, f64::max);
 
         let first_price = price_values.first().copied().unwrap_or(0.0);
-        let total_change_pct = if first_price != 0.0 {
-            (current_price - first_price) / first_price * 100.0
-        } else {
+        let total_change_pct = if first_price == 0.0 {
             0.0
+        } else {
+            (current_price - first_price) / first_price * 100.0
         };
 
         let trend = if total_change_pct > 5.0 {

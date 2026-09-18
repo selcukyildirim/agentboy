@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct ProjectTrackerAgent;
 impl ProjectTrackerAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }

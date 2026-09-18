@@ -25,7 +25,8 @@ pub struct CrashRecovery {
 }
 
 impl CrashRecovery {
-    pub fn new(state_dir: PathBuf) -> Self {
+    #[must_use]
+    pub const fn new(state_dir: PathBuf) -> Self {
         Self { state_dir }
     }
 
@@ -91,6 +92,7 @@ impl CrashRecovery {
         Ok(())
     }
 
+    #[must_use]
     pub fn get_resumable_executions(&self) -> Vec<PendingExecution> {
         self.load_state()
             .ok()
@@ -111,7 +113,7 @@ mod tests {
     use super::*;
 
     fn test_dir(name: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("test_crash_{}", name))
+        std::env::temp_dir().join(format!("test_crash_{name}"))
     }
 
     #[test]

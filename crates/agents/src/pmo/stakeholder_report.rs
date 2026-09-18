@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct StakeholderReportAgent;
 impl StakeholderReportAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -65,7 +66,7 @@ impl Agent for StakeholderReportAgent {
             return Err(AppError::Validation("No projects".to_string()));
         }
 
-        let mut analysis: Vec<serde_json::Value> = projects.iter().map(|p| {
+        let analysis: Vec<serde_json::Value> = projects.iter().map(|p| {
             let progress = csv_util::record_get_f64(p, "progress_pct");
             let budget_var = csv_util::record_get_f64(p, "budget_variance");
             let schedule_var = csv_util::record_get_f64(p, "schedule_variance_days");

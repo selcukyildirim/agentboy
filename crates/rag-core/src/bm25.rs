@@ -12,6 +12,7 @@ pub struct BM25Retriever {
 }
 
 impl BM25Retriever {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             k1: 1.5,
@@ -40,7 +41,7 @@ impl BM25Retriever {
         for (term, freq) in term_freq {
             self.index
                 .entry(term)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((doc_id.clone(), freq));
         }
 
@@ -48,6 +49,7 @@ impl BM25Retriever {
         self.avg_doc_length = total as f32 / self.doc_count as f32;
     }
 
+    #[must_use]
     pub fn search(&self, query: &str, top_k: usize) -> Vec<(Chunk, f32)> {
         let query_terms = self.tokenize(query);
         let mut scores: HashMap<String, f32> = HashMap::new();
@@ -55,14 +57,16 @@ impl BM25Retriever {
         for term in &query_terms {
             if let Some(postings) = self.index.get(term) {
                 let df = postings.len() as f32;
-                let idf = ((self.doc_count as f32 - df + 0.5) / (df + 0.5) + 1.0).ln();
+                let idf = ((self.doc_count as f32 - df + 0.5) / (df + 0.5)).ln_1p();
 
                 for (doc_id, tf) in postings {
                     let doc_len = self.doc_lengths.get(doc_id).copied().unwrap_or(0) as f32;
                     let tf_val = *tf as f32;
                     let tf_norm = (tf_val * (self.k1 + 1.0))
-                        / (tf_val
-                            + self.k1 * (1.0 - self.b + self.b * doc_len / self.avg_doc_length));
+                        / self.k1.mul_add(
+                            1.0 - self.b + self.b * doc_len / self.avg_doc_length,
+                            tf_val,
+                        );
                     let score = idf * tf_norm;
                     *scores.entry(doc_id.clone()).or_insert(0.0) += score;
                 }
@@ -86,7 +90,8 @@ impl BM25Retriever {
             .collect()
     }
 
-    pub fn count(&self) -> usize {
+    #[must_use]
+    pub const fn count(&self) -> usize {
         self.doc_count
     }
 }

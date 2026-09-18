@@ -9,6 +9,7 @@ pub struct Metrics {
 }
 
 impl Metrics {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             counters: HashMap::new(),
@@ -28,18 +29,21 @@ impl Metrics {
     pub fn record_histogram(&mut self, name: &str, value: f64) {
         self.histograms
             .entry(name.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(value);
     }
 
+    #[must_use]
     pub fn get_counter(&self, name: &str) -> u64 {
         self.counters.get(name).copied().unwrap_or(0)
     }
 
+    #[must_use]
     pub fn get_gauge(&self, name: &str) -> f64 {
         self.gauges.get(name).copied().unwrap_or(0.0)
     }
 
+    #[must_use]
     pub fn get_histogram_stats(&self, name: &str) -> Option<HistogramStats> {
         let values = self.histograms.get(name)?;
         if values.is_empty() {
@@ -69,6 +73,7 @@ impl Metrics {
         })
     }
 
+    #[must_use]
     pub fn export_json(&self) -> serde_json::Value {
         serde_json::json!({
             "counters": self.counters,
@@ -147,7 +152,7 @@ mod tests {
     fn test_histogram_percentiles() {
         let mut metrics = Metrics::new();
         for i in 1..=100 {
-            metrics.record_histogram("latency", i as f64);
+            metrics.record_histogram("latency", f64::from(i));
         }
 
         let stats = metrics.get_histogram_stats("latency").unwrap();

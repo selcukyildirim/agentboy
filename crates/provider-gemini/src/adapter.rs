@@ -1,7 +1,9 @@
 use agent_common::error::{AppError, AppResult};
 use async_trait::async_trait;
 use llm_gateway::gateway::LlmProvider;
-use llm_gateway::types::*;
+use llm_gateway::types::{
+    CompletionRequest, CompletionResponse, ModelInfo, ProviderCapabilities, Role, ToolCall, Usage,
+};
 
 pub struct GeminiProvider {
     api_key: String,
@@ -9,6 +11,7 @@ pub struct GeminiProvider {
 }
 
 impl GeminiProvider {
+    #[must_use]
     pub fn new(api_key: String) -> Self {
         Self {
             api_key,
@@ -17,13 +20,13 @@ impl GeminiProvider {
     }
 
     fn base_url(&self) -> String {
-        format!("https://generativelanguage.googleapis.com/v1beta",)
+        "https://generativelanguage.googleapis.com/v1beta".to_string()
     }
 }
 
 #[async_trait]
 impl LlmProvider for GeminiProvider {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         "gemini"
     }
 
@@ -183,7 +186,7 @@ impl LlmProvider for GeminiProvider {
                     .filter(|p| p["functionCall"].is_object())
                     .enumerate()
                     .map(|(i, p)| ToolCall {
-                        id: format!("call_{}", i),
+                        id: format!("call_{i}"),
                         name: p["functionCall"]["name"].as_str().unwrap_or("").to_string(),
                         arguments: p["functionCall"]["args"].clone(),
                     })

@@ -10,7 +10,7 @@ pub struct Database {
 
 impl Database {
     pub async fn new(db_path: &str) -> AppResult<Self> {
-        let url = format!("sqlite:{}?mode=rwc", db_path);
+        let url = format!("sqlite:{db_path}?mode=rwc");
 
         let pool = SqlitePoolOptions::new()
             .max_connections(5)
@@ -26,7 +26,8 @@ impl Database {
         Ok(Self { pool })
     }
 
-    pub fn pool(&self) -> &SqlitePool {
+    #[must_use]
+    pub const fn pool(&self) -> &SqlitePool {
         &self.pool
     }
 

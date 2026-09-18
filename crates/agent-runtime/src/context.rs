@@ -79,26 +79,28 @@ impl Default for AgentConfig {
 }
 
 impl AgentConfig {
+    #[must_use]
     pub fn model_override(&self) -> Option<String> {
         self.custom
             .get("model")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
     }
 
+    #[must_use]
     pub fn effective_temperature(&self) -> f64 {
         self.custom
             .get("temperature")
-            .and_then(|v| v.as_f64())
+            .and_then(serde_json::Value::as_f64)
             .unwrap_or(self.temperature)
     }
 
+    #[must_use]
     pub fn effective_max_tokens(&self) -> u32 {
         self.custom
             .get("max_tokens")
-            .and_then(|v| v.as_u64())
-            .map(|v| v as u32)
-            .unwrap_or(self.max_tokens)
+            .and_then(serde_json::Value::as_u64)
+            .map_or(self.max_tokens, |v| v as u32)
     }
 }
 
@@ -157,7 +159,7 @@ pub trait AgentContext: Send + Sync {
         context: &str,
         user_prompt: &str,
     ) -> AppResult<String> {
-        let full_user = format!("{}\n\n{}", context, user_prompt);
+        let full_user = format!("{context}\n\n{user_prompt}");
         self.call_llm(system_prompt, &full_user).await
     }
 
@@ -179,6 +181,7 @@ pub struct DefaultAgentContext {
 }
 
 impl DefaultAgentContext {
+    #[must_use]
     pub fn new(llm: Box<dyn LlmProvider>, config: AgentConfig) -> Self {
         Self {
             llm,
@@ -189,10 +192,12 @@ impl DefaultAgentContext {
         }
     }
 
+    #[must_use]
     pub fn with_config(llm: Box<dyn LlmProvider>) -> Self {
         Self::new(llm, AgentConfig::default())
     }
 
+    #[must_use]
     pub fn with_egress_classification(
         llm: Box<dyn LlmProvider>,
         classification: DataClassification,
@@ -270,6 +275,7 @@ pub struct MockLlmProvider {
 }
 
 impl MockLlmProvider {
+    #[must_use]
     pub fn with_response(response: &str) -> Self {
         Self {
             responses: vec![response.to_string()],
@@ -277,7 +283,8 @@ impl MockLlmProvider {
         }
     }
 
-    pub fn with_responses(responses: Vec<String>) -> Self {
+    #[must_use]
+    pub const fn with_responses(responses: Vec<String>) -> Self {
         Self {
             responses,
             call_count: std::sync::atomic::AtomicUsize::new(0),
@@ -312,11 +319,11 @@ impl LlmProvider for MockLlmProvider {
         })
     }
 
-    fn model_name(&self) -> &str {
+    fn model_name(&self) -> &'static str {
         "mock-model"
     }
 
-    fn provider_id(&self) -> &str {
+    fn provider_id(&self) -> &'static str {
         "mock"
     }
 }
@@ -334,11 +341,11 @@ impl MockAgentContext {
         }
     }
 
-    pub fn with_config(llm: MockLlmProvider, config: AgentConfig) -> Self {
+    pub const fn with_config(llm: MockLlmProvider, config: AgentConfig) -> Self {
         Self { llm, config }
     }
 
-    pub fn provider(&self) -> &MockLlmProvider {
+    pub const fn provider(&self) -> &MockLlmProvider {
         &self.llm
     }
 }
@@ -418,8 +425,10 @@ mod tests {
     #[tokio::test]
     async fn test_offline_mode_skips_llm() {
         let llm = MockLlmProvider::with_response("should not be called");
-        let mut config = AgentConfig::default();
-        config.offline = true;
+        let config = AgentConfig {
+            offline: true,
+            ..Default::default()
+        };
         let ctx = MockAgentContext::with_config(llm, config);
 
         let result = ctx.call_llm("system", "user").await.unwrap();

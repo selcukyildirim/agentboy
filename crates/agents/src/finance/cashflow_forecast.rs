@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct CashFlowForecastAgent;
 
 impl CashFlowForecastAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -99,15 +100,15 @@ impl Agent for CashFlowForecastAgent {
 
         let net_cashflow = inflows - outflows;
         let ending_balance = opening_balance + net_cashflow;
-        let avg_monthly_inflow = if !monthly.is_empty() {
+        let _avg_monthly_inflow = if monthly.is_empty() {
+            0.0
+        } else {
             monthly.values().map(|(i, _)| i).sum::<f64>() / monthly.len() as f64
-        } else {
-            0.0
         };
-        let avg_monthly_outflow = if !monthly.is_empty() {
-            monthly.values().map(|(_, o)| o).sum::<f64>() / monthly.len() as f64
-        } else {
+        let avg_monthly_outflow = if monthly.is_empty() {
             0.0
+        } else {
+            monthly.values().map(|(_, o)| o).sum::<f64>() / monthly.len() as f64
         };
 
         let months_of_runway = if avg_monthly_outflow > 0.0 {

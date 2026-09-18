@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 pub struct ProcurementDecisionAgent;
 
 impl ProcurementDecisionAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -63,15 +64,20 @@ impl Agent for ProcurementDecisionAgent {
             .iter()
             .filter(|q| {
                 q.get("price")
-                    .and_then(|p| p.as_f64())
-                    .map(|price| price <= budget_limit)
-                    .unwrap_or(false)
+                    .and_then(serde_json::Value::as_f64)
+                    .is_some_and(|price| price <= budget_limit)
             })
             .collect();
 
         valid_quotes.sort_by(|a, b| {
-            let pa = a.get("price").and_then(|p| p.as_f64()).unwrap_or(f64::MAX);
-            let pb = b.get("price").and_then(|p| p.as_f64()).unwrap_or(f64::MAX);
+            let pa = a
+                .get("price")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(f64::MAX);
+            let pb = b
+                .get("price")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(f64::MAX);
             pa.partial_cmp(&pb).unwrap_or(std::cmp::Ordering::Equal)
         });
 
@@ -83,7 +89,10 @@ impl Agent for ProcurementDecisionAgent {
             })
         } else {
             let best = valid_quotes[0];
-            let best_price = best.get("price").and_then(|p| p.as_f64()).unwrap_or(0.0);
+            let best_price = best
+                .get("price")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.0);
             let vendor_name = best
                 .get("vendor")
                 .and_then(|v| v.as_str())
@@ -94,7 +103,7 @@ impl Agent for ProcurementDecisionAgent {
                 .map(|q| {
                     serde_json::json!({
                         "vendor": q.get("vendor").and_then(|v| v.as_str()).unwrap_or("Unknown"),
-                        "price": q.get("price").and_then(|p| p.as_f64()).unwrap_or(0.0),
+                        "price": q.get("price").and_then(serde_json::Value::as_f64).unwrap_or(0.0),
                     })
                 })
                 .collect();

@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 pub struct InvoiceReaderAgent;
 
 impl InvoiceReaderAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -67,10 +68,8 @@ impl Agent for InvoiceReaderAgent {
         let extracted = extract_invoice_data(content);
 
         let system_prompt = "You are an invoice data extraction expert. Given raw invoice text, extract all key fields (invoice number, date, vendor, line items, total, tax). Return as JSON.";
-        let user_prompt = format!(
-            "Raw invoice text:\n\n{}\n\nExtract all invoice fields as JSON.",
-            content
-        );
+        let user_prompt =
+            format!("Raw invoice text:\n\n{content}\n\nExtract all invoice fields as JSON.");
         let llm_result = ctx.call_llm(system_prompt, &user_prompt).await?;
 
         let mut merged = extracted.as_object().cloned().unwrap_or_default();
@@ -79,7 +78,7 @@ impl Agent for InvoiceReaderAgent {
             if let Some(llm_obj) = llm_data.as_object() {
                 llm_enhanced = true;
                 for (k, v) in llm_obj {
-                    if !merged.contains_key(k) || merged[k].as_str().unwrap_or("") == "" {
+                    if !merged.contains_key(k) || merged[k].as_str().unwrap_or("").is_empty() {
                         merged.insert(k.clone(), v.clone());
                     }
                 }

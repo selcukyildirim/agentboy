@@ -14,7 +14,7 @@ impl SqliteAuditStore {
             .max_connections(5)
             .connect(database_url)
             .await
-            .map_err(|e| AppError::Database(format!("Failed to connect to audit DB: {}", e)))?;
+            .map_err(|e| AppError::Database(format!("Failed to connect to audit DB: {e}")))?;
 
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS audit_events (
@@ -30,17 +30,17 @@ impl SqliteAuditStore {
         )
         .execute(&pool)
         .await
-        .map_err(|e| AppError::Database(format!("Failed to create audit table: {}", e)))?;
+        .map_err(|e| AppError::Database(format!("Failed to create audit table: {e}")))?;
 
         sqlx::query("CREATE INDEX IF NOT EXISTS idx_audit_agent_id ON audit_events(agent_id)")
             .execute(&pool)
             .await
-            .map_err(|e| AppError::Database(format!("Failed to create index: {}", e)))?;
+            .map_err(|e| AppError::Database(format!("Failed to create index: {e}")))?;
 
         sqlx::query("CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_events(created_at)")
             .execute(&pool)
             .await
-            .map_err(|e| AppError::Database(format!("Failed to create index: {}", e)))?;
+            .map_err(|e| AppError::Database(format!("Failed to create index: {e}")))?;
 
         Ok(Self { pool })
     }
@@ -71,7 +71,7 @@ impl SqliteAuditStore {
         .bind(event.timestamp.to_rfc3339())
         .execute(&self.pool)
         .await
-        .map_err(|e| AppError::Database(format!("Failed to record audit event: {}", e)))?;
+        .map_err(|e| AppError::Database(format!("Failed to record audit event: {e}")))?;
 
         Ok(())
     }
@@ -88,9 +88,11 @@ impl SqliteAuditStore {
         .bind(limit as i64)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| AppError::Database(format!("Failed to query audit events: {}", e)))?;
+        .map_err(|e| AppError::Database(format!("Failed to query audit events: {e}")))?;
 
-        rows.into_iter().map(|row| row.try_into()).collect()
+        rows.into_iter()
+            .map(std::convert::TryInto::try_into)
+            .collect()
     }
 
     pub async fn query_all(&self, limit: usize) -> AppResult<Vec<AuditEvent>> {
@@ -103,30 +105,32 @@ impl SqliteAuditStore {
         .bind(limit as i64)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| AppError::Database(format!("Failed to query audit events: {}", e)))?;
+        .map_err(|e| AppError::Database(format!("Failed to query audit events: {e}")))?;
 
-        rows.into_iter().map(|row| row.try_into()).collect()
+        rows.into_iter()
+            .map(std::convert::TryInto::try_into)
+            .collect()
     }
 
     pub async fn count(&self) -> AppResult<i64> {
         let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM audit_events")
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| AppError::Database(format!("Failed to count audit events: {}", e)))?;
+            .map_err(|e| AppError::Database(format!("Failed to count audit events: {e}")))?;
         Ok(row.0)
     }
 
     pub async fn delete_old(&self, days: i64) -> AppResult<u64> {
         let cutoff = Utc::now()
             .checked_sub_signed(chrono::Duration::days(days))
-            .unwrap_or_else(|| Utc::now())
+            .unwrap_or_else(Utc::now)
             .to_rfc3339();
 
         let result = sqlx::query("DELETE FROM audit_events WHERE created_at < ?")
             .bind(cutoff)
             .execute(&self.pool)
             .await
-            .map_err(|e| AppError::Database(format!("Failed to delete old events: {}", e)))?;
+            .map_err(|e| AppError::Database(format!("Failed to delete old events: {e}")))?;
 
         Ok(result.rows_affected())
     }
@@ -149,13 +153,13 @@ impl TryFrom<AuditRow> for AuditEvent {
 
     fn try_from(row: AuditRow) -> Result<Self, Self::Error> {
         let event_id = Uuid::parse_str(&row.event_id)
-            .map_err(|e| AppError::Validation(format!("Invalid event_id: {}", e)))?;
+            .map_err(|e| AppError::Validation(format!("Invalid event_id: {e}")))?;
 
         let execution_id = row
             .execution_id
             .map(|s| Uuid::parse_str(&s))
             .transpose()
-            .map_err(|e| AppError::Validation(format!("Invalid execution_id: {}", e)))?;
+            .map_err(|e| AppError::Validation(format!("Invalid execution_id: {e}")))?;
 
         let result = match row.result.as_str() {
             "success" => AuditResult::Success,
@@ -167,10 +171,9 @@ impl TryFrom<AuditRow> for AuditEvent {
         let details = row.details.and_then(|s| serde_json::from_str(&s).ok());
 
         let timestamp = chrono::DateTime::parse_from_rfc3339(&row.created_at)
-            .map(|dt| dt.with_timezone(&Utc))
-            .unwrap_or_else(|_| Utc::now());
+            .map_or_else(|_| Utc::now(), |dt| dt.with_timezone(&Utc));
 
-        Ok(AuditEvent {
+        Ok(Self {
             event_id,
             execution_id,
             agent_id: row.agent_id,

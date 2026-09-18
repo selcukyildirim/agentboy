@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct LeadScoringAgent;
 
 impl LeadScoringAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -72,7 +73,7 @@ impl Agent for LeadScoringAgent {
                 let engagement = csv_util::record_get_f64(lead, "engagement_score");
                 let fit = csv_util::record_get_f64(lead, "fit_score");
                 let recency = csv_util::record_get_f64(lead, "recency_score");
-                let composite = engagement * 0.4 + fit * 0.35 + recency * 0.25;
+                let composite = recency.mul_add(0.25, engagement.mul_add(0.4, fit * 0.35));
                 let tier = if composite >= 0.8 {
                     "hot"
                 } else if composite >= 0.5 {

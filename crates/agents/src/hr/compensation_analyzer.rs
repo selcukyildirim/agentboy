@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct CompensationAnalyzerAgent;
 
 impl CompensationAnalyzerAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -62,14 +63,13 @@ impl Agent for CompensationAnalyzerAgent {
         let mut avg_ratios = Vec::new();
 
         for (role, total_salary) in &by_role {
-            let count = role_count.get(role).map(|v| v.len()).unwrap_or(1) as f64;
+            let count = role_count.get(role).map_or(1, std::vec::Vec::len) as f64;
             let avg_salary = total_salary / count;
 
             if let Some(role_employees) = role_count.get(role) {
                 let market_rate = role_employees
                     .iter()
-                    .filter_map(|e| e.get("market_rate").and_then(|v| v.parse::<f64>().ok()))
-                    .next()
+                    .find_map(|e| e.get("market_rate").and_then(|v| v.parse::<f64>().ok()))
                     .unwrap_or(avg_salary);
 
                 let market_ratio = avg_salary / market_rate;
@@ -111,10 +111,10 @@ impl Agent for CompensationAnalyzerAgent {
             .iter()
             .map(|e| csv_util::record_get_f64(e, "salary"))
             .sum();
-        let avg_market_ratio = if !avg_ratios.is_empty() {
-            avg_ratios.iter().sum::<f64>() / avg_ratios.len() as f64
-        } else {
+        let avg_market_ratio = if avg_ratios.is_empty() {
             1.0
+        } else {
+            avg_ratios.iter().sum::<f64>() / avg_ratios.len() as f64
         };
 
         let system_prompt =

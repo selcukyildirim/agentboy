@@ -23,6 +23,7 @@ pub struct SkillRegistry {
 }
 
 impl SkillRegistry {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             skills: HashMap::new(),
@@ -34,23 +35,31 @@ impl SkillRegistry {
         self.skills.insert(id, skill);
     }
 
+    #[must_use]
     pub fn get(&self, id: &str) -> Option<&dyn Skill> {
-        self.skills.get(id).map(|s| s.as_ref())
+        self.skills.get(id).map(std::convert::AsRef::as_ref)
     }
 
+    #[must_use]
     pub fn list(&self) -> Vec<&str> {
-        self.skills.keys().map(|s| s.as_str()).collect()
+        self.skills
+            .keys()
+            .map(std::string::String::as_str)
+            .collect()
     }
 
+    #[must_use]
     pub fn contains(&self, id: &str) -> bool {
         self.skills.contains_key(id)
     }
 
+    #[must_use]
     pub fn is_builtin(id: &str) -> bool {
         BUILTIN_SKILLS.contains(&id)
     }
 
     /// A skill is resolvable if it is registered or is a builtin.
+    #[must_use]
     pub fn is_resolvable(&self, id: &str) -> bool {
         self.contains(id) || Self::is_builtin(id)
     }

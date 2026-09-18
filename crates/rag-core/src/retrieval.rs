@@ -4,7 +4,8 @@ use agent_common::error::AppResult;
 pub struct HybridRetriever;
 
 impl HybridRetriever {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 

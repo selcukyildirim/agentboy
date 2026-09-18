@@ -14,6 +14,7 @@ pub struct ExecutionContext {
 }
 
 impl ExecutionContext {
+    #[must_use]
     pub fn new(
         execution_id: ExecutionId,
         agent_id: String,
@@ -33,10 +34,10 @@ impl ExecutionContext {
         }
     }
 
+    #[must_use]
     pub fn is_expired(&self) -> bool {
         let created = chrono::DateTime::parse_from_rfc3339(&self.created_at)
-            .map(|dt| dt.with_timezone(&chrono::Utc))
-            .unwrap_or_else(|_| chrono::Utc::now());
+            .map_or_else(|_| chrono::Utc::now(), |dt| dt.with_timezone(&chrono::Utc));
         let elapsed = chrono::Utc::now() - created;
         elapsed.num_seconds() as u64 > self.timeout_seconds
     }

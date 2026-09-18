@@ -44,7 +44,7 @@ pub struct WorkflowExecution {
     pub error: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ExecutionStatus {
     Pending,
     Running,
@@ -67,7 +67,7 @@ pub struct StepResult {
     pub rollback_performed: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum StepStatus {
     Pending,
     Running,
@@ -80,7 +80,8 @@ pub enum StepStatus {
 pub struct WorkflowRunner;
 
 impl WorkflowRunner {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 
@@ -106,7 +107,7 @@ impl WorkflowRunner {
 
         for step in &workflow.steps {
             let step_result = self
-                .execute_step(executor, step, &params, &mut prev_outputs)
+                .execute_step(executor, step, &params, &prev_outputs)
                 .await;
             execution.step_results.push(step_result.clone());
 

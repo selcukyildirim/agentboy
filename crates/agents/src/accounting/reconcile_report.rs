@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct ReconcileReportAgent;
 
 impl ReconcileReportAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -87,9 +88,7 @@ impl Agent for ReconcileReportAgent {
             let abs_diff = difference.abs();
             total_discrepancies += abs_diff;
 
-            let account_status = if status == "reconciled" {
-                "reconciled"
-            } else if abs_diff < 0.01 {
+            let account_status = if status == "reconciled" || abs_diff < 0.01 {
                 "reconciled"
             } else if abs_diff < 10.0 {
                 "minor_discrepancy"
@@ -116,7 +115,7 @@ impl Agent for ReconcileReportAgent {
 
         let total_accounts = accounts.len();
         let reconciliation_rate = if total_accounts > 0 {
-            reconciled_count as f64 / total_accounts as f64 * 100.0
+            f64::from(reconciled_count) / total_accounts as f64 * 100.0
         } else {
             0.0
         };

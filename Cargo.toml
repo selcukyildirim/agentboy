@@ -77,6 +77,7 @@ hardening = { path = "crates/hardening" }
 unsafe_code = "forbid"
 
 [workspace.lints.clippy]
+# Enforce correctness/style/perf lints (clippy::all) workspace-wide.
+# pedantic/nursery are intentionally not enabled: they are experimental and
+# produce a large volume of low-value style warnings that hide real issues.
 all = "warn"
-pedantic = "warn"
-nursery = "warn"

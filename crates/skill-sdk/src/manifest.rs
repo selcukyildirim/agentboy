@@ -12,7 +12,7 @@ pub struct SkillManifest {
     pub output_schema: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SkillTier {
     Free,
     Paid,

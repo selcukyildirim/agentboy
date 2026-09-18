@@ -7,7 +7,8 @@ use async_trait::async_trait;
 pub struct PdfParser;
 
 impl PdfParser {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 
@@ -65,8 +66,7 @@ impl Tool for PdfParser {
                 reason: "PDF metadata not yet implemented".to_string(),
             }),
             _ => Err(AppError::Validation(format!(
-                "Unknown operation: {}",
-                operation
+                "Unknown operation: {operation}"
             ))),
         }
     }
@@ -75,7 +75,8 @@ impl Tool for PdfParser {
 pub struct DocxParser;
 
 impl DocxParser {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 

@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct KPIReporterAgent;
 impl KPIReporterAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -65,7 +66,7 @@ impl Agent for KPIReporterAgent {
         let mut analysis: Vec<serde_json::Value> = kpis.iter().map(|k| {
             let current = csv_util::record_get_f64(k, "current_value");
             let target = csv_util::record_get_f64(k, "target_value");
-            let variance = if target != 0.0 { (current - target) / target * 100.0 } else { 0.0 };
+            let variance = if target == 0.0 { 0.0 } else { (current - target) / target * 100.0 };
             let status = if variance >= 0.0 { "on_track" } else if variance >= -10.0 { "at_risk" } else { "off_track" };
             serde_json::json!({ "name": csv_util::record_get_str(k, "name"), "department": csv_util::record_get_str(k, "department"), "current_value": current, "target_value": target, "variance_pct": variance, "status": status })
         }).collect();

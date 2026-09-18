@@ -27,7 +27,8 @@ pub struct StructureAwareChunker {
 }
 
 impl StructureAwareChunker {
-    pub fn new(max_chunk_size: usize, overlap: usize) -> Self {
+    #[must_use]
+    pub const fn new(max_chunk_size: usize, overlap: usize) -> Self {
         Self {
             max_chunk_size,
             overlap,
@@ -35,11 +36,13 @@ impl StructureAwareChunker {
         }
     }
 
-    pub fn with_min_size(mut self, min: usize) -> Self {
+    #[must_use]
+    pub const fn with_min_size(mut self, min: usize) -> Self {
         self.min_chunk_size = min;
         self
     }
 
+    #[must_use]
     pub fn chunk(&self, document_id: &str, content: &str) -> Vec<Chunk> {
         let sections = self.split_by_headings(content);
         let mut chunks = Vec::new();

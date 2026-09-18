@@ -42,18 +42,6 @@ pub fn record_document_indexed() {
     }
 }
 
-pub fn record_cache_hit() {
-    if let Ok(mut m) = metrics().lock() {
-        m.increment_counter("cache_hits", 1);
-    }
-}
-
-pub fn record_cache_miss() {
-    if let Ok(mut m) = metrics().lock() {
-        m.increment_counter("cache_misses", 1);
-    }
-}
-
 #[tauri::command]
 pub fn get_health() -> HealthReport {
     // Delegate to the hardening health checker (single source of truth).
@@ -97,7 +85,7 @@ pub fn get_health() -> HealthReport {
 
 #[tauri::command]
 pub fn get_metrics() -> MetricsReport {
-    let m = agent_common::sync::lock(&metrics());
+    let m = agent_common::sync::lock(metrics());
 
     let hits = m.get_counter("cache_hits");
     let misses = m.get_counter("cache_misses");

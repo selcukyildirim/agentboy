@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct CapacityPlannerAgent;
 impl CapacityPlannerAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -80,14 +81,14 @@ impl Agent for CapacityPlannerAgent {
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        let avg_util: f64 = if !analysis.is_empty() {
+        let avg_util: f64 = if analysis.is_empty() {
+            0.0
+        } else {
             analysis
                 .iter()
                 .map(|a| a["utilization_pct"].as_f64().unwrap_or(0.0))
                 .sum::<f64>()
                 / analysis.len() as f64
-        } else {
-            0.0
         };
         let bottlenecks = analysis
             .iter()

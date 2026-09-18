@@ -8,6 +8,7 @@ pub struct VectorIndex {
 }
 
 impl VectorIndex {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             vectors: Vec::new(),
@@ -21,6 +22,7 @@ impl VectorIndex {
         self.chunk_map.insert(id, chunk);
     }
 
+    #[must_use]
     pub fn search(&self, query_embedding: &[f32], top_k: usize) -> Vec<(Chunk, f32)> {
         let mut scores: Vec<(String, f32)> = self
             .vectors
@@ -47,7 +49,8 @@ impl VectorIndex {
         initial - self.vectors.len()
     }
 
-    pub fn count(&self) -> usize {
+    #[must_use]
+    pub const fn count(&self) -> usize {
         self.vectors.len()
     }
 }
@@ -67,7 +70,7 @@ mod tests {
         Chunk {
             chunk_id: id.to_string(),
             document_id: "doc1".to_string(),
-            content: format!("Content for {}", id),
+            content: format!("Content for {id}"),
             index: 0,
             metadata: ChunkMetadata {
                 page: None,

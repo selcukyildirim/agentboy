@@ -11,7 +11,8 @@ pub struct FilesystemReadTool {
 }
 
 impl FilesystemReadTool {
-    pub fn new(allowed_dirs: Vec<PathBuf>) -> Self {
+    #[must_use]
+    pub const fn new(allowed_dirs: Vec<PathBuf>) -> Self {
         Self { allowed_dirs }
     }
 
@@ -34,7 +35,7 @@ impl FilesystemReadTool {
 
         Err(AppError::ToolPermissionDenied {
             tool: "filesystem.read".to_string(),
-            reason: format!("Path '{}' not in allowed directories", path),
+            reason: format!("Path '{path}' not in allowed directories"),
         })
     }
 }
@@ -80,7 +81,8 @@ pub struct FilesystemWriteTool {
 }
 
 impl FilesystemWriteTool {
-    pub fn new(allowed_dirs: Vec<PathBuf>) -> Self {
+    #[must_use]
+    pub const fn new(allowed_dirs: Vec<PathBuf>) -> Self {
         Self { allowed_dirs }
     }
 
@@ -103,7 +105,7 @@ impl FilesystemWriteTool {
 
         Err(AppError::ToolPermissionDenied {
             tool: "filesystem.write".to_string(),
-            reason: format!("Path '{}' not in allowed directories", path),
+            reason: format!("Path '{path}' not in allowed directories"),
         })
     }
 }
@@ -160,7 +162,7 @@ mod tests {
     #[test]
     fn test_path_traversal_blocked() {
         let dir = env::temp_dir();
-        let tool = FilesystemReadTool::new(vec![dir.clone()]);
+        let tool = FilesystemReadTool::new(vec![dir]);
 
         let result = tool.validate_path("/etc/passwd");
         assert!(result.is_err());

@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct QualityAssuranceAgent;
 impl QualityAssuranceAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -93,7 +94,7 @@ impl Agent for QualityAssuranceAgent {
         let worst_line = by_line
             .iter()
             .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal));
-        let user_prompt = format!("Quality Report: {:.2}% defect rate ({}/{} inspected).\nBy category: {:?}\nBy line: {:?}\n\nRecommendations?", defect_rate, total_defects, total_inspected, by_category, by_line);
+        let user_prompt = format!("Quality Report: {defect_rate:.2}% defect rate ({total_defects}/{total_inspected} inspected).\nBy category: {by_category:?}\nBy line: {by_line:?}\n\nRecommendations?");
         let llm = ctx
             .call_llm(
                 "Analyze quality defects and recommend improvements.",

@@ -8,7 +8,8 @@ pub struct WorkflowHistory {
 }
 
 impl WorkflowHistory {
-    pub fn new(pool: SqlitePool) -> Self {
+    #[must_use]
+    pub const fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
 

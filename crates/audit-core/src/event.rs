@@ -14,7 +14,7 @@ pub struct AuditEvent {
     pub timestamp: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AuditResult {
     Success,
     Failure,

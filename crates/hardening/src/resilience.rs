@@ -8,7 +8,8 @@ pub struct RetryPolicy {
 }
 
 impl RetryPolicy {
-    pub fn new(max_retries: u32, base_delay: Duration) -> Self {
+    #[must_use]
+    pub const fn new(max_retries: u32, base_delay: Duration) -> Self {
         Self {
             max_retries,
             base_delay,
@@ -17,16 +18,19 @@ impl RetryPolicy {
         }
     }
 
-    pub fn with_max_delay(mut self, max_delay: Duration) -> Self {
+    #[must_use]
+    pub const fn with_max_delay(mut self, max_delay: Duration) -> Self {
         self.max_delay = max_delay;
         self
     }
 
-    pub fn with_backoff_multiplier(mut self, multiplier: f64) -> Self {
+    #[must_use]
+    pub const fn with_backoff_multiplier(mut self, multiplier: f64) -> Self {
         self.backoff_multiplier = multiplier;
         self
     }
 
+    #[must_use]
     pub fn delay_for_attempt(&self, attempt: u32) -> Duration {
         let delay_ms =
             self.base_delay.as_millis() as f64 * self.backoff_multiplier.powi(attempt as i32);
@@ -34,11 +38,13 @@ impl RetryPolicy {
         Duration::from_millis(capped as u64)
     }
 
-    pub fn should_retry(&self, attempt: u32) -> bool {
+    #[must_use]
+    pub const fn should_retry(&self, attempt: u32) -> bool {
         attempt < self.max_retries
     }
 
-    pub fn max_retries(&self) -> u32 {
+    #[must_use]
+    pub const fn max_retries(&self) -> u32 {
         self.max_retries
     }
 }
@@ -67,7 +73,8 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
-    pub fn new(failure_threshold: u32, timeout: Duration) -> Self {
+    #[must_use]
+    pub const fn new(failure_threshold: u32, timeout: Duration) -> Self {
         Self {
             failure_threshold,
             success_threshold: 1,
@@ -95,7 +102,7 @@ impl CircuitBreaker {
         }
     }
 
-    pub fn record_success(&mut self) {
+    pub const fn record_success(&mut self) {
         match &self.state {
             CircuitState::HalfOpen => {
                 self.success_count += 1;
@@ -130,7 +137,8 @@ impl CircuitBreaker {
         }
     }
 
-    pub fn state_name(&self) -> &str {
+    #[must_use]
+    pub const fn state_name(&self) -> &str {
         match &self.state {
             CircuitState::Closed => "closed",
             CircuitState::Open { .. } => "open",

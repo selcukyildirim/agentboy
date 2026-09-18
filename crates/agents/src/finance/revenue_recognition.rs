@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct RevenueRecognitionAgent;
 
 impl RevenueRecognitionAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -112,10 +113,10 @@ impl Agent for RevenueRecognitionAgent {
             }
         }
 
-        let avg_invoice = if !invoices.is_empty() {
-            total_revenue / invoices.len() as f64
-        } else {
+        let avg_invoice = if invoices.is_empty() {
             0.0
+        } else {
+            total_revenue / invoices.len() as f64
         };
 
         let system_prompt = "You are a revenue recognition specialist. Analyze the revenue data and provide insights on revenue quality, deferred revenue risks, customer concentration, and recognition compliance. Be concise and professional.";

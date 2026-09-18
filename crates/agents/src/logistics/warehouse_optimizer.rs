@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct WarehouseOptimizerAgent;
 impl WarehouseOptimizerAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -65,7 +66,7 @@ impl Agent for WarehouseOptimizerAgent {
             return Err(AppError::Validation("No zones".to_string()));
         }
 
-        let mut analysis: Vec<serde_json::Value> = zones.iter().map(|z| {
+        let analysis: Vec<serde_json::Value> = zones.iter().map(|z| {
             let capacity = csv_util::record_get_f64(z, "capacity_units");
             let used = csv_util::record_get_f64(z, "used_units");
             let picks = csv_util::record_get_f64(z, "daily_picks");

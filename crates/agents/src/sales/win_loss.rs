@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct WinLossAnalysisAgent;
 
 impl WinLossAnalysisAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -97,7 +98,7 @@ impl Agent for WinLossAnalysisAgent {
         let user_prompt = format!(
             "Win/Loss Analysis ({} deals):\n- Won: {} deals ({:.2})\n- Lost: {} deals ({:.2})\n- Win rate: {:.1}%\n\nLoss Reasons:\n{}\n\nProvide improvement recommendations.",
             deals.len(), won.len(), won_value, lost.len(), lost_value,
-            if !deals.is_empty() { won.len() as f64 / deals.len() as f64 * 100.0 } else { 0.0 },
+            if deals.is_empty() { 0.0 } else { won.len() as f64 / deals.len() as f64 * 100.0 },
             serde_json::to_string_pretty(&loss_summary).unwrap_or_default(),
         );
         let llm_analysis = ctx.call_llm(system_prompt, &user_prompt).await?;

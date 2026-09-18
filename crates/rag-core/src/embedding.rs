@@ -13,7 +13,8 @@ pub struct LocalEmbeddingProvider {
 }
 
 impl LocalEmbeddingProvider {
-    pub fn new(dimension: usize) -> Self {
+    #[must_use]
+    pub const fn new(dimension: usize) -> Self {
         Self { dimension }
     }
 }
@@ -33,7 +34,7 @@ impl EmbeddingProvider for LocalEmbeddingProvider {
         self.dimension
     }
 
-    fn model_name(&self) -> &str {
+    fn model_name(&self) -> &'static str {
         "local-hash"
     }
 }
@@ -43,7 +44,7 @@ impl LocalEmbeddingProvider {
         let mut embedding = vec![0.0f32; self.dimension];
         for (i, byte) in text.bytes().enumerate() {
             let idx = i % self.dimension;
-            embedding[idx] += byte as f32;
+            embedding[idx] += f32::from(byte);
         }
         let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
         if norm > 0.0 {
@@ -55,6 +56,7 @@ impl LocalEmbeddingProvider {
     }
 }
 
+#[must_use]
 pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
     let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();

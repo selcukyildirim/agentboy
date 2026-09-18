@@ -11,7 +11,7 @@ pub type UserId = Uuid;
 pub type DocumentId = Uuid;
 pub type ChunkId = Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ExecutionStatus {
     Pending,
     Running,
@@ -30,7 +30,7 @@ pub enum DataClassification {
     L4FullContent,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ToolRisk {
     Read,
     Write,
@@ -40,7 +40,7 @@ pub enum ToolRisk {
     Admin,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EntitlementResult {
     Allow,
     Deny,

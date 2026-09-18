@@ -17,7 +17,7 @@ pub struct Message {
     pub content: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Role {
     System,
     User,
@@ -91,6 +91,7 @@ pub struct GatewayRouter {
 }
 
 impl GatewayRouter {
+    #[must_use]
     pub fn new(mode: RoutingMode) -> Self {
         Self {
             providers: Vec::new(),
@@ -102,10 +103,15 @@ impl GatewayRouter {
         self.providers.push(provider);
     }
 
+    #[must_use]
     pub fn get_provider(&self, id: &str) -> Option<&dyn LlmProvider> {
         self.providers
             .iter()
             .find(|p| p.id() == id)
             .map(|p| p.as_ref())
+    }
+
+    pub fn mode(&self) -> &RoutingMode {
+        &self.mode
     }
 }

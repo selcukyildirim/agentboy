@@ -6,6 +6,7 @@ pub struct ToolRegistry {
 }
 
 impl ToolRegistry {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             tools: HashMap::new(),
@@ -17,12 +18,14 @@ impl ToolRegistry {
         self.tools.insert(id, tool);
     }
 
+    #[must_use]
     pub fn get(&self, id: &str) -> Option<&dyn Tool> {
-        self.tools.get(id).map(|t| t.as_ref())
+        self.tools.get(id).map(std::convert::AsRef::as_ref)
     }
 
+    #[must_use]
     pub fn list(&self) -> Vec<&str> {
-        self.tools.keys().map(|s| s.as_str()).collect()
+        self.tools.keys().map(std::string::String::as_str).collect()
     }
 }
 

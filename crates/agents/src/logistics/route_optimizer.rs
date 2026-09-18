@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct RouteOptimizerAgent;
 impl RouteOptimizerAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -86,14 +87,14 @@ impl Agent for RouteOptimizerAgent {
             .iter()
             .map(|a| a["deliveries"].as_u64().unwrap_or(0))
             .sum();
-        let avg_on_time: f64 = if !analysis.is_empty() {
+        let avg_on_time: f64 = if analysis.is_empty() {
+            0.0
+        } else {
             analysis
                 .iter()
                 .map(|a| a["on_time_pct"].as_f64().unwrap_or(0.0))
                 .sum::<f64>()
                 / analysis.len() as f64
-        } else {
-            0.0
         };
 
         let llm = ctx.call_llm("Optimize routes and reduce costs.", &format!("Routes ({} routes, {} deliveries, total cost: {:.0}, avg on-time: {:.1}%):\n{}\n\nOptimize?", routes.len(), total_deliveries, total_cost, avg_on_time, serde_json::to_string_pretty(&analysis).unwrap_or_default())).await?;

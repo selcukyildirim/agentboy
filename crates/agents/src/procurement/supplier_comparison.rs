@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 pub struct SupplierComparisonAgent;
 
 impl SupplierComparisonAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -81,10 +82,22 @@ impl Agent for SupplierComparisonAgent {
             let ds = s["delivery_score"].as_f64().unwrap_or(0.5);
             let rs = s["reliability_score"].as_f64().unwrap_or(0.5);
 
-            let weighted = ps * w.get("price").and_then(|v| v.as_f64()).unwrap_or(0.4)
-                + qs * w.get("quality").and_then(|v| v.as_f64()).unwrap_or(0.3)
-                + ds * w.get("delivery").and_then(|v| v.as_f64()).unwrap_or(0.2)
-                + rs * w.get("reliability").and_then(|v| v.as_f64()).unwrap_or(0.1);
+            let weighted = ps
+                * w.get("price")
+                    .and_then(serde_json::Value::as_f64)
+                    .unwrap_or(0.4)
+                + qs * w
+                    .get("quality")
+                    .and_then(serde_json::Value::as_f64)
+                    .unwrap_or(0.3)
+                + ds * w
+                    .get("delivery")
+                    .and_then(serde_json::Value::as_f64)
+                    .unwrap_or(0.2)
+                + rs * w
+                    .get("reliability")
+                    .and_then(serde_json::Value::as_f64)
+                    .unwrap_or(0.1);
 
             let rec = if weighted >= 0.7 {
                 "recommended"

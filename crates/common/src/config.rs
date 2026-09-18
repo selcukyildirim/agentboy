@@ -32,6 +32,7 @@ pub struct ProviderSettings {
 }
 
 impl ProviderSettings {
+    #[must_use]
     pub fn timeout(&self) -> std::time::Duration {
         std::time::Duration::from_secs(self.timeout_seconds.max(30))
     }

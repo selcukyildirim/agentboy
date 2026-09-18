@@ -20,7 +20,8 @@ pub struct SheetData {
 pub struct XlsxEngine;
 
 impl XlsxEngine {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 
@@ -95,8 +96,8 @@ impl XlsxEngine {
                 if !values.is_empty() {
                     let sum: f64 = values.iter().sum();
                     let avg = sum / values.len() as f64;
-                    let min = values.iter().cloned().fold(f64::INFINITY, f64::min);
-                    let max = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+                    let min = values.iter().copied().fold(f64::INFINITY, f64::min);
+                    let max = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
 
                     col_stats.push(serde_json::json!({
                         "column": sheet.headers[col_idx],
@@ -159,8 +160,7 @@ impl Tool for XlsxEngine {
                 self.summarize(&data)
             }
             _ => Err(AppError::Validation(format!(
-                "Unknown operation: {}",
-                operation
+                "Unknown operation: {operation}"
             ))),
         }
     }

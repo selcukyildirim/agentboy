@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct DocumentReviewerAgent;
 impl DocumentReviewerAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -66,7 +67,7 @@ impl Agent for DocumentReviewerAgent {
             return Err(AppError::Validation("No documents".to_string()));
         }
 
-        let mut analysis: Vec<serde_json::Value> = docs.iter().map(|d| {
+        let analysis: Vec<serde_json::Value> = docs.iter().map(|d| {
             let completeness = csv_util::record_get_f64(d, "completeness_score");
             let risk_flags = csv_util::record_get_f64(d, "risk_flags") as u64;
             let status = if completeness > 0.9 && risk_flags == 0 { "approved" } else if completeness > 0.7 { "needs_revision" } else { "rejected" };

@@ -27,6 +27,7 @@ pub struct DecisionContextBuilder {
 }
 
 impl DecisionContextBuilder {
+    #[must_use]
     pub fn new(decision_type: DecisionType) -> Self {
         Self {
             decision_type,
@@ -51,6 +52,7 @@ impl DecisionContextBuilder {
         self.evidences.push(evidence);
     }
 
+    #[must_use]
     pub fn build(&self) -> DecisionContext {
         let required_facts = self.decision_type.required_facts();
         let missing = self.detect_missing(&required_facts);
@@ -88,10 +90,12 @@ impl DecisionContextBuilder {
 pub struct MissingInfoDetector;
 
 impl MissingInfoDetector {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 
+    #[must_use]
     pub fn detect(&self, context: &DecisionContext) -> MissingInfoReport {
         let required_facts = context.decision_type.required_facts();
         let mut missing_required = Vec::new();
@@ -151,7 +155,7 @@ pub struct MissingFact {
     pub impact: ImpactLevel,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ImpactLevel {
     High,
     Medium,

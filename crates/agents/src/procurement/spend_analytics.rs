@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct SpendAnalyticsAgent;
 
 impl SpendAnalyticsAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -82,10 +83,10 @@ impl Agent for SpendAnalyticsAgent {
             0.0
         };
 
-        let avg_transaction = if !records.is_empty() {
-            total_spend / records.len() as f64
-        } else {
+        let avg_transaction = if records.is_empty() {
             0.0
+        } else {
+            total_spend / records.len() as f64
         };
 
         let unique_vendors = by_vendor.len();

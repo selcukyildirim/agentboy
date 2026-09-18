@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct BudgetVarianceAgent;
 
 impl BudgetVarianceAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -76,10 +77,10 @@ impl Agent for BudgetVarianceAgent {
         for (category, budget_amount) in &budget {
             let actual_amount = actual.get(category).copied().unwrap_or(0.0);
             let variance = actual_amount - budget_amount;
-            let variance_pct = if *budget_amount != 0.0 {
-                variance / budget_amount.abs()
-            } else {
+            let variance_pct = if *budget_amount == 0.0 {
                 0.0
+            } else {
+                variance / budget_amount.abs()
             };
             let is_material = variance_pct.abs() > threshold;
 
@@ -118,10 +119,10 @@ impl Agent for BudgetVarianceAgent {
             total_budget,
             total_actual,
             total_variance,
-            if total_budget != 0.0 {
-                total_variance / total_budget.abs() * 100.0
-            } else {
+            if total_budget == 0.0 {
                 0.0
+            } else {
+                total_variance / total_budget.abs() * 100.0
             },
             variances.len(),
             threshold * 100.0,
@@ -137,7 +138,7 @@ impl Agent for BudgetVarianceAgent {
                 "total_budget": total_budget,
                 "total_actual": total_actual,
                 "total_variance": total_variance,
-                "total_variance_pct": format!("{:.1}%", if total_budget != 0.0 { total_variance / total_budget.abs() * 100.0 } else { 0.0 }),
+                "total_variance_pct": format!("{:.1}%", if total_budget == 0.0 { 0.0 } else { total_variance / total_budget.abs() * 100.0 }),
                 "categories_analyzed": variances.len(),
                 "material_deviations_count": material_deviations.len(),
                 "threshold_pct": threshold * 100.0,

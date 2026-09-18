@@ -4,10 +4,12 @@ use agent_common::types::ToolRisk;
 pub struct ToolRiskClassifier;
 
 impl ToolRiskClassifier {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 
+    #[must_use]
     pub fn classify(tool_id: &str) -> ToolRisk {
         match tool_id {
             id if id.starts_with("filesystem.read") => ToolRisk::Read,
@@ -25,14 +27,16 @@ impl ToolRiskClassifier {
         }
     }
 
-    pub fn requires_approval(risk: &ToolRisk) -> bool {
+    #[must_use]
+    pub const fn requires_approval(risk: &ToolRisk) -> bool {
         matches!(
             risk,
             ToolRisk::Destructive | ToolRisk::Financial | ToolRisk::Admin
         )
     }
 
-    pub fn is_allowed_in_free_tier(risk: &ToolRisk) -> bool {
+    #[must_use]
+    pub const fn is_allowed_in_free_tier(risk: &ToolRisk) -> bool {
         !matches!(risk, ToolRisk::Admin)
     }
 }

@@ -10,7 +10,7 @@ use chrono::Utc;
 pub trait Agent: Send + Sync {
     fn manifest(&self) -> AgentManifest;
 
-    async fn execute(&self, input: serde_json::Value) -> AppResult<serde_json::Value> {
+    async fn execute(&self, _input: serde_json::Value) -> AppResult<serde_json::Value> {
         Err(AppError::Validation(
             "execute(input) not implemented - use execute_with_context".to_string(),
         ))
@@ -19,7 +19,7 @@ pub trait Agent: Send + Sync {
     async fn execute_with_context(
         &self,
         input: serde_json::Value,
-        ctx: &dyn AgentContext,
+        _ctx: &dyn AgentContext,
     ) -> AppResult<serde_json::Value> {
         self.execute(input).await
     }
@@ -58,7 +58,7 @@ impl AgentExecutor {
                         execution_id: None,
                         agent_id: agent_id.clone(),
                         action: "execute".to_string(),
-                        resource: format!("agent/{}", agent_id),
+                        resource: format!("agent/{agent_id}"),
                         result: AuditResult::Denied,
                         details: Some(serde_json::json!({"error": e.to_string()})),
                         timestamp: Utc::now(),
@@ -76,7 +76,7 @@ impl AgentExecutor {
                         execution_id: None,
                         agent_id: agent_id.clone(),
                         action: "execute".to_string(),
-                        resource: format!("agent/{}", agent_id),
+                        resource: format!("agent/{agent_id}"),
                         result: AuditResult::Denied,
                         details: Some(serde_json::json!({"error": e.to_string()})),
                         timestamp: Utc::now(),
@@ -104,29 +104,27 @@ impl AgentExecutor {
                 }
             };
 
-            match exec_result {
-                Ok(result) => result,
-                Err(_) => {
-                    let err = AppError::Validation(format!(
-                        "Agent '{}' timed out after {} seconds",
-                        agent_id, timeout_secs
-                    ));
-                    if let Some(store) = audit_store {
-                        let _ = store
-                            .record(AuditEvent {
-                                event_id: uuid::Uuid::new_v4(),
-                                execution_id: None,
-                                agent_id: agent_id.clone(),
-                                action: "execute".to_string(),
-                                resource: format!("agent/{}", agent_id),
-                                result: AuditResult::Failure,
-                                details: Some(serde_json::json!({"error": err.to_string()})),
-                                timestamp: Utc::now(),
-                            })
-                            .await;
-                    }
-                    return Err(err);
+            if let Ok(result) = exec_result {
+                result
+            } else {
+                let err = AppError::Validation(format!(
+                    "Agent '{agent_id}' timed out after {timeout_secs} seconds"
+                ));
+                if let Some(store) = audit_store {
+                    let _ = store
+                        .record(AuditEvent {
+                            event_id: uuid::Uuid::new_v4(),
+                            execution_id: None,
+                            agent_id: agent_id.clone(),
+                            action: "execute".to_string(),
+                            resource: format!("agent/{agent_id}"),
+                            result: AuditResult::Failure,
+                            details: Some(serde_json::json!({"error": err.to_string()})),
+                            timestamp: Utc::now(),
+                        })
+                        .await;
                 }
+                return Err(err);
             }
         };
 
@@ -148,7 +146,7 @@ impl AgentExecutor {
                     execution_id: None,
                     agent_id: agent_id.clone(),
                     action: "execute".to_string(),
-                    resource: format!("agent/{}", agent_id),
+                    resource: format!("agent/{agent_id}"),
                     result: audit_result,
                     details,
                     timestamp: Utc::now(),

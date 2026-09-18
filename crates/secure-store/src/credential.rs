@@ -14,7 +14,7 @@ pub struct StoredCredential {
     pub status: CredentialStatus,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum CredentialStatus {
     Active,
     Expired,

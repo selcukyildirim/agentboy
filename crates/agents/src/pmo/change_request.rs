@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct ChangeRequestAgent;
 impl ChangeRequestAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -66,7 +67,7 @@ impl Agent for ChangeRequestAgent {
             return Err(AppError::Validation("No change requests".to_string()));
         }
 
-        let mut analysis: Vec<serde_json::Value> = changes.iter().map(|c| {
+        let analysis: Vec<serde_json::Value> = changes.iter().map(|c| {
             let schedule_impact = csv_util::record_get_f64(c, "schedule_impact_days");
             let budget_impact = csv_util::record_get_f64(c, "budget_impact");
             let priority = csv_util::record_get_str(c, "priority");

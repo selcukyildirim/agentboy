@@ -1,7 +1,7 @@
 use agent_common::error::{AppError, AppResult};
 use async_trait::async_trait;
 use llm_gateway::gateway::LlmProvider;
-use llm_gateway::types::*;
+use llm_gateway::types::{CompletionRequest, CompletionResponse, ModelInfo, ProviderCapabilities};
 
 pub struct OllamaProvider {
     base_url: String,
@@ -9,6 +9,7 @@ pub struct OllamaProvider {
 }
 
 impl OllamaProvider {
+    #[must_use]
     pub fn new(base_url: Option<String>) -> Self {
         Self {
             base_url: base_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
@@ -19,7 +20,7 @@ impl OllamaProvider {
 
 #[async_trait]
 impl LlmProvider for OllamaProvider {
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         "ollama"
     }
 

@@ -11,7 +11,8 @@ use crate::tool::Tool;
 pub struct CsvEngine;
 
 impl CsvEngine {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 
@@ -27,12 +28,22 @@ impl CsvEngine {
         let headers = rdr
             .headers()
             .map_err(|e| AppError::Validation(format!("CSV header error: {e}")))?;
-        rows.push(headers.iter().map(|h| h.to_string()).collect());
+        rows.push(
+            headers
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect(),
+        );
 
         for record in rdr.records() {
             let record =
                 record.map_err(|e| AppError::Validation(format!("CSV record error: {e}")))?;
-            rows.push(record.iter().map(|f| f.to_string()).collect());
+            rows.push(
+                record
+                    .iter()
+                    .map(std::string::ToString::to_string)
+                    .collect(),
+            );
         }
 
         Ok(rows)
@@ -78,7 +89,7 @@ impl CsvEngine {
         out.write_record(headers)
             .map_err(|e| AppError::Validation(format!("CSV write error: {e}")))?;
         for row in &rows[1..] {
-            if row.get(col_idx).map(|v| v == value).unwrap_or(false) {
+            if row.get(col_idx).is_some_and(|v| v == value) {
                 out.write_record(row)
                     .map_err(|e| AppError::Validation(format!("CSV write error: {e}")))?;
             }

@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct SalesForecastAgent;
 
 impl SalesForecastAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -90,18 +91,18 @@ impl Agent for SalesForecastAgent {
             0.0
         };
 
-        let avg_deal_size = if !deals.is_empty() {
-            total_value / deals.len() as f64
-        } else {
+        let avg_deal_size = if deals.is_empty() {
             0.0
+        } else {
+            total_value / deals.len() as f64
         };
-        let avg_win_deal = if !won.is_empty() {
+        let avg_win_deal = if won.is_empty() {
+            0.0
+        } else {
             won.iter()
                 .map(|r| csv_util::record_get_f64(r, "value"))
                 .sum::<f64>()
                 / won.len() as f64
-        } else {
-            0.0
         };
 
         let system_prompt = "You are a sales forecast analyst. Analyze pipeline and provide revenue forecast. Be concise.";

@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct FreightAnalyzerAgent;
 impl FreightAnalyzerAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -68,7 +69,7 @@ impl Agent for FreightAnalyzerAgent {
         let by_carrier = csv_util::sum_by(&shipments, "carrier", "cost");
         let shipments_by_carrier = csv_util::group_by(&shipments, "carrier");
         let mut carrier_analysis: Vec<serde_json::Value> = by_carrier.iter().map(|(carrier, cost)| {
-            let count = shipments_by_carrier.get(carrier).map(|v| v.len()).unwrap_or(1) as f64;
+            let count = shipments_by_carrier.get(carrier).map_or(1, std::vec::Vec::len) as f64;
             let avg = cost / count;
             serde_json::json!({ "carrier": carrier, "total_cost": cost, "shipment_count": count as u64, "avg_cost": avg })
         }).collect();

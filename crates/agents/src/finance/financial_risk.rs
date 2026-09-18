@@ -11,7 +11,8 @@ use crate::csv_util;
 pub struct FinancialRiskAgent;
 
 impl FinancialRiskAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -72,12 +73,12 @@ impl Agent for FinancialRiskAgent {
             .map(|r| csv_util::record_get_f64(r, "amount").abs())
             .collect();
         let total_exposure: f64 = amounts.iter().sum();
-        let avg_transaction = if !amounts.is_empty() {
-            total_exposure / amounts.len() as f64
-        } else {
+        let avg_transaction = if amounts.is_empty() {
             0.0
+        } else {
+            total_exposure / amounts.len() as f64
         };
-        let max_transaction = amounts.iter().cloned().fold(f64::MIN, f64::max);
+        let max_transaction = amounts.iter().copied().fold(f64::MIN, f64::max);
         let std_dev = csv_util::standard_deviation(&amounts);
         let volatility = if avg_transaction > 0.0 {
             std_dev / avg_transaction
@@ -185,11 +186,11 @@ fn calculate_risk_score(
         score += (pct * 40.0).min(40.0) as u32;
     }
 
-    let max_amount = amounts.iter().cloned().fold(f64::MIN, f64::max);
-    let avg = if !amounts.is_empty() {
-        total_exposure / amounts.len() as f64
-    } else {
+    let max_amount = amounts.iter().copied().fold(f64::MIN, f64::max);
+    let avg = if amounts.is_empty() {
         0.0
+    } else {
+        total_exposure / amounts.len() as f64
     };
     if avg > 0.0 {
         let size_ratio = max_amount / avg;

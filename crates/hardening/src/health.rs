@@ -9,7 +9,7 @@ pub struct HealthReport {
     pub uptime_seconds: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum HealthStatus {
     Healthy,
     Degraded,
@@ -37,7 +37,7 @@ trait HealthCheck: Send + Sync {
 struct DatabaseHealthCheck;
 
 impl HealthCheck for DatabaseHealthCheck {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "database"
     }
 
@@ -54,7 +54,7 @@ impl HealthCheck for DatabaseHealthCheck {
 struct CacheHealthCheck;
 
 impl HealthCheck for CacheHealthCheck {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "cache"
     }
 
@@ -88,6 +88,7 @@ impl HealthCheck for ProviderHealthCheck {
 }
 
 impl HealthChecker {
+    #[must_use]
     pub fn new() -> Self {
         let mut checker = Self {
             start_time: chrono::Utc::now(),
@@ -104,6 +105,7 @@ impl HealthChecker {
         }));
     }
 
+    #[must_use]
     pub fn check_health(&self) -> HealthReport {
         let mut components = HashMap::new();
         let mut overall_status = HealthStatus::Healthy;
@@ -188,7 +190,7 @@ mod tests {
     fn test_component_health_latency() {
         let checker = HealthChecker::new();
         let report = checker.check_health();
-        for (_, component) in &report.components {
+        for component in report.components.values() {
             assert!(component.latency_ms.is_some());
         }
     }

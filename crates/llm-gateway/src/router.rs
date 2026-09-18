@@ -1,5 +1,5 @@
 use crate::gateway::LlmProvider;
-use crate::types::*;
+use crate::types::{CompletionRequest, CompletionResponse, ProviderCapabilities, RoutingMode};
 use agent_common::error::{AppError, AppResult};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -12,6 +12,7 @@ pub struct GatewayRouter {
 }
 
 impl GatewayRouter {
+    #[must_use]
     pub fn new(mode: RoutingMode) -> Self {
         Self {
             providers: HashMap::new(),
@@ -39,16 +40,23 @@ impl GatewayRouter {
         self.fallback_order = order;
     }
 
+    #[must_use]
     pub fn get_provider(&self, id: &str) -> Option<Arc<dyn LlmProvider>> {
         self.providers.get(id).cloned()
     }
 
+    #[must_use]
     pub fn list_providers(&self) -> Vec<String> {
         self.providers.keys().cloned().collect()
     }
 
+    #[must_use]
     pub fn default_provider_id(&self) -> Option<&str> {
         self.default_provider.as_deref()
+    }
+
+    pub fn mode(&self) -> &RoutingMode {
+        &self.mode
     }
 
     pub async fn complete(
@@ -160,8 +168,9 @@ impl Default for GatewayRouter {
 pub struct SmartRouter;
 
 impl SmartRouter {
+    #[must_use]
     pub fn select_provider(
-        task_type: &str,
+        _task_type: &str,
         required_capabilities: &ProviderCapabilities,
         providers: &[(String, ProviderCapabilities)],
     ) -> Option<String> {

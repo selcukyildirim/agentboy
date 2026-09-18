@@ -11,6 +11,7 @@ pub struct MetadataFilter {
 }
 
 impl MetadataFilter {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             document_id: None,
@@ -21,16 +22,19 @@ impl MetadataFilter {
         }
     }
 
+    #[must_use]
     pub fn with_document_id(mut self, id: &str) -> Self {
         self.document_id = Some(id.to_string());
         self
     }
 
+    #[must_use]
     pub fn with_section(mut self, section: &str) -> Self {
         self.section = Some(section.to_string());
         self
     }
 
+    #[must_use]
     pub fn matches(&self, chunk: &Chunk) -> bool {
         if let Some(ref doc_id) = self.document_id {
             if &chunk.document_id != doc_id {
@@ -53,6 +57,7 @@ impl MetadataFilter {
         true
     }
 
+    #[must_use]
     pub fn filter(&self, chunks: Vec<Chunk>) -> Vec<Chunk> {
         chunks.into_iter().filter(|c| self.matches(c)).collect()
     }
@@ -71,7 +76,7 @@ mod tests {
 
     fn make_chunk(doc_id: &str, section: &str) -> Chunk {
         Chunk {
-            chunk_id: format!("{}-0", doc_id),
+            chunk_id: format!("{doc_id}-0"),
             document_id: doc_id.to_string(),
             content: "test".to_string(),
             index: 0,

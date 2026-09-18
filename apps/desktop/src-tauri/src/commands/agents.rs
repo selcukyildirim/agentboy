@@ -115,8 +115,10 @@ pub async fn execute_agent(
         })?;
 
         let manifest = agent.manifest();
-        let mut config = AgentConfig::default();
-        config.offline = offline;
+        let config = AgentConfig {
+            offline,
+            ..Default::default()
+        };
 
         let mut usage = LlmUsage::default();
         let mut model_name: Option<String> = None;

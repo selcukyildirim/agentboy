@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct BudgetTrackerAgent;
 impl BudgetTrackerAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -61,7 +62,7 @@ impl Agent for BudgetTrackerAgent {
             return Err(AppError::Validation("No budgets".to_string()));
         }
 
-        let mut analysis: Vec<serde_json::Value> = budgets.iter().map(|b| {
+        let analysis: Vec<serde_json::Value> = budgets.iter().map(|b| {
             let allocated = csv_util::record_get_f64(b, "allocated");
             let spent = csv_util::record_get_f64(b, "spent");
             let remaining = allocated - spent;

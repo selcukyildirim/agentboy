@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct PricingOptimizationAgent;
 
 impl PricingOptimizationAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }

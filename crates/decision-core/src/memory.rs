@@ -26,7 +26,8 @@ pub struct DecisionMemory {
 }
 
 impl DecisionMemory {
-    pub fn new(pool: SqlitePool) -> Self {
+    #[must_use]
+    pub const fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
 
@@ -46,7 +47,7 @@ impl DecisionMemory {
              VALUES (?, ?, ?, ?, datetime('now'))"
         )
         .bind(&id)
-        .bind(&context.decision_type.to_string())
+        .bind(context.decision_type.to_string())
         .bind(&context_json)
         .bind(&rec_json)
         .execute(&self.pool)
@@ -134,7 +135,7 @@ impl DecisionMemory {
              WHERE recommendation_json LIKE ?
              ORDER BY created_at DESC LIMIT ?",
         )
-        .bind(format!("%{}%", query))
+        .bind(format!("%{query}%"))
         .bind(limit)
         .fetch_all(&self.pool)
         .await

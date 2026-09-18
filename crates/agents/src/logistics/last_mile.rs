@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct LastMileAgent;
 impl LastMileAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -102,7 +103,7 @@ impl Agent for LastMileAgent {
             0.0
         };
 
-        let llm = ctx.call_llm("Optimize last-mile delivery.", &format!("Last Mile ({} deliveries, {}% success, {}% first-attempt, cost/delivery: {:.2}):\n\nOptimize?", total, success_rate, first_attempt_rate, cost_per)).await?;
+        let llm = ctx.call_llm("Optimize last-mile delivery.", &format!("Last Mile ({total} deliveries, {success_rate}% success, {first_attempt_rate}% first-attempt, cost/delivery: {cost_per:.2}):\n\nOptimize?")).await?;
         Ok(
             serde_json::json!({ "summary": { "total_deliveries": total, "success_rate_pct": success_rate, "first_attempt_rate_pct": first_attempt_rate, "cost_per_delivery": cost_per, "failed": failed }, "llm_analysis": llm }),
         )

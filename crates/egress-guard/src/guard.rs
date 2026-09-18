@@ -21,7 +21,8 @@ pub struct EgressGuard {
 }
 
 impl EgressGuard {
-    pub fn new(max_classification: DataClassification) -> Self {
+    #[must_use]
+    pub const fn new(max_classification: DataClassification) -> Self {
         Self {
             max_classification,
             classifier: DataClassifier::new(),
@@ -41,6 +42,7 @@ impl EgressGuard {
         Ok(())
     }
 
+    #[must_use]
     pub fn classify_content(&self, content: &str) -> DataClassification {
         self.classifier.classify(content)
     }
@@ -79,14 +81,18 @@ impl EgressGuard {
         Ok((sanitized, classification))
     }
 
+    #[must_use]
     pub fn get_audit_log(&self) -> &[AuditEntry] {
         &self.audit_log
     }
 
-    pub fn classifier(&self) -> &DataClassifier {
+    #[must_use]
+    pub const fn classifier(&self) -> &DataClassifier {
         &self.classifier
     }
 
+    #[must_use]
+    #[allow(clippy::too_many_arguments)]
     pub fn build_manifest(
         &self,
         provider: &str,

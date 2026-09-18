@@ -85,7 +85,7 @@ fn store() -> &'static Mutex<Vec<Workflow>> {
 
 #[tauri::command]
 pub fn list_workflows() -> Vec<WorkflowInfo> {
-    agent_common::sync::lock(&store())
+    agent_common::sync::lock(store())
         .iter()
         .map(to_info)
         .collect()
@@ -100,7 +100,7 @@ pub fn create_workflow(name: String, description: String) -> Result<WorkflowInfo
     wf.description = description;
     wf.trigger = Trigger::Manual;
 
-    let mut workflows = agent_common::sync::lock(&store());
+    let mut workflows = agent_common::sync::lock(store());
     workflows.push(wf.clone());
     save_to_disk(&workflows)?;
     tracing::info!(workflow_id = %wf.id, "Workflow created");
@@ -113,7 +113,7 @@ pub fn add_workflow_step(
     agent_id: String,
     name: String,
 ) -> Result<WorkflowInfo, String> {
-    let mut workflows = agent_common::sync::lock(&store());
+    let mut workflows = agent_common::sync::lock(store());
     let wf = workflows
         .iter_mut()
         .find(|w| w.id == workflow_id)
@@ -139,7 +139,7 @@ pub fn add_workflow_step(
 
 #[tauri::command]
 pub fn delete_workflow(workflow_id: String) -> Result<(), String> {
-    let mut workflows = agent_common::sync::lock(&store());
+    let mut workflows = agent_common::sync::lock(store());
     workflows.retain(|w| w.id != workflow_id);
     save_to_disk(&workflows)
 }
@@ -165,8 +165,10 @@ impl StepExecutor for DesktopStepExecutor {
             .ok_or_else(|| agent_common::error::AppError::NotFound(format!("Agent {skill_id}")))?;
 
         let manifest = agent.manifest();
-        let mut config = AgentConfig::default();
-        config.offline = offline;
+        let config = AgentConfig {
+            offline,
+            ..Default::default()
+        };
 
         let outcome = if manifest.permissions.network_llm && !offline {
             let spec = resolve_provider_spec().await.map_err(|e| {
@@ -200,7 +202,7 @@ pub async fn execute_workflow(
     tracing::info!(workflow_id = %workflow_id, "Executing workflow from UI");
 
     let workflow = {
-        let workflows = agent_common::sync::lock(&store());
+        let workflows = agent_common::sync::lock(store());
         workflows.iter().find(|w| w.id == workflow_id).cloned()
     }
     .ok_or_else(|| format!("Workflow {workflow_id} not found"))?;

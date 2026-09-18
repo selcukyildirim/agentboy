@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct DeliveryTrackerAgent;
 impl DeliveryTrackerAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -82,10 +83,10 @@ impl Agent for DeliveryTrackerAgent {
             .filter_map(|d| d.get("delay_hours").and_then(|v| v.parse::<f64>().ok()))
             .filter(|d| *d > 0.0)
             .collect();
-        let avg_delay = if !delays.is_empty() {
-            delays.iter().sum::<f64>() / delays.len() as f64
-        } else {
+        let avg_delay = if delays.is_empty() {
             0.0
+        } else {
+            delays.iter().sum::<f64>() / delays.len() as f64
         };
         let sla_compliance = if total > 0 {
             on_time as f64 / total as f64 * 100.0
@@ -93,7 +94,7 @@ impl Agent for DeliveryTrackerAgent {
             0.0
         };
 
-        let llm = ctx.call_llm("Analyze delivery performance.", &format!("Deliveries ({} total, {} on-time, {:.1}% SLA, avg delay: {:.1}h):\n\nRecommendations?", total, on_time, sla_compliance, avg_delay)).await?;
+        let llm = ctx.call_llm("Analyze delivery performance.", &format!("Deliveries ({total} total, {on_time} on-time, {sla_compliance:.1}% SLA, avg delay: {avg_delay:.1}h):\n\nRecommendations?")).await?;
         Ok(
             serde_json::json!({ "summary": { "total_deliveries": total, "on_time": on_time, "late": late, "sla_compliance_pct": sla_compliance, "avg_delay_hours": avg_delay }, "llm_analysis": llm }),
         )

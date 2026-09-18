@@ -33,11 +33,13 @@ fn secret_patterns() -> &'static [Regex] {
 pub struct DataClassifier;
 
 impl DataClassifier {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 
     /// Classify content in a single pass, detecting PII and secrets once.
+    #[must_use]
     pub fn classify(&self, content: &str) -> DataClassification {
         if self.detect_secrets(content).is_some() {
             return DataClassification::L0LocalOnly;
@@ -52,6 +54,7 @@ impl DataClassifier {
         }
     }
 
+    #[must_use]
     pub fn detect_pii(&self, content: &str) -> Option<Vec<String>> {
         let mut found = Vec::new();
         for pattern in pii_patterns() {
@@ -66,6 +69,7 @@ impl DataClassifier {
         }
     }
 
+    #[must_use]
     pub fn detect_secrets(&self, content: &str) -> Option<Vec<String>> {
         let mut found = Vec::new();
         for pattern in secret_patterns() {
@@ -80,6 +84,7 @@ impl DataClassifier {
         }
     }
 
+    #[must_use]
     pub fn sanitize(&self, content: &str) -> String {
         let mut result = content.to_string();
         for pattern in pii_patterns() {

@@ -44,6 +44,7 @@ use crate::sales::{
 };
 
 /// All 60 free agents as boxed trait objects.
+#[must_use]
 pub fn all_agents() -> Vec<Box<dyn Agent>> {
     vec![
         // Finance
@@ -127,6 +128,7 @@ pub fn register_all(registry: &mut AgentRegistry) {
 }
 
 /// Manifests of all free agents.
+#[must_use]
 pub fn all_manifests() -> Vec<AgentManifest> {
     all_agents().iter().map(|a| a.manifest()).collect()
 }
@@ -192,6 +194,6 @@ mod tests {
             .collect();
         deps.sort();
         deps.dedup();
-        assert_eq!(deps.len(), 10, "expected 10 departments, got {:?}", deps);
+        assert_eq!(deps.len(), 10, "expected 10 departments, got {deps:?}");
     }
 }

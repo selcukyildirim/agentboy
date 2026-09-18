@@ -6,13 +6,15 @@ pub struct RetrievalMerger {
 }
 
 impl RetrievalMerger {
-    pub fn new(vector_weight: f32, bm25_weight: f32) -> Self {
+    #[must_use]
+    pub const fn new(vector_weight: f32, bm25_weight: f32) -> Self {
         Self {
             vector_weight,
             bm25_weight,
         }
     }
 
+    #[must_use]
     pub fn merge(
         &self,
         vector_results: Vec<(Chunk, f32)>,
@@ -52,10 +54,12 @@ impl Default for RetrievalMerger {
 pub struct Reranker;
 
 impl Reranker {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 
+    #[must_use]
     pub fn rerank(&self, query: &str, results: Vec<(Chunk, f32)>) -> Vec<(Chunk, f32)> {
         let mut reranked: Vec<(Chunk, f32)> = results
             .into_iter()

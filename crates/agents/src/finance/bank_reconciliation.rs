@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct BankReconciliationAgent;
 
 impl BankReconciliationAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -90,10 +91,10 @@ impl Agent for BankReconciliationAgent {
 
                 let amount_match = (bank_amount - ledger_amount).abs() <= tolerance;
                 let date_match = bank_date == ledger_date;
-                let ref_match = if !bank_ref.is_empty() {
-                    bank_ref == csv_util::record_get_str(ledger_rec, "reference")
-                } else {
+                let ref_match = if bank_ref.is_empty() {
                     true
+                } else {
+                    bank_ref == csv_util::record_get_str(ledger_rec, "reference")
                 };
 
                 if amount_match && date_match && ref_match {

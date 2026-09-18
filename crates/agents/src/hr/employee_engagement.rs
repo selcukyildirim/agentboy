@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct EmployeeEngagementAgent;
 
 impl EmployeeEngagementAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -89,10 +90,10 @@ impl Agent for EmployeeEngagementAgent {
                     .collect();
 
                 let avg = |vals: &[f64]| {
-                    if !vals.is_empty() {
-                        vals.iter().sum::<f64>() / vals.len() as f64
-                    } else {
+                    if vals.is_empty() {
                         0.0
+                    } else {
+                        vals.iter().sum::<f64>() / vals.len() as f64
                     }
                 };
 
@@ -129,10 +130,10 @@ impl Agent for EmployeeEngagementAgent {
             .iter()
             .filter_map(|r| r.get("overall_score").and_then(|v| v.parse::<f64>().ok()))
             .collect();
-        let company_avg = if !all_overall.is_empty() {
-            all_overall.iter().sum::<f64>() / all_overall.len() as f64
-        } else {
+        let company_avg = if all_overall.is_empty() {
             0.0
+        } else {
+            all_overall.iter().sum::<f64>() / all_overall.len() as f64
         };
 
         let system_prompt = "You are an employee engagement analyst. Analyze survey results and recommend engagement improvements. Be concise.";

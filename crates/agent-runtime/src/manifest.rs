@@ -24,9 +24,9 @@ pub struct AgentManifest {
 }
 
 /// A single input the agent accepts.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct InputField {
-    /// JSON key the agent reads (e.g. "bank_statement").
+    /// JSON key the agent reads (e.g. "`bank_statement`").
     pub key: String,
     /// Human-readable label for the UI.
     pub label: String,
@@ -41,6 +41,7 @@ pub struct InputField {
 }
 
 impl InputField {
+    #[must_use]
     pub fn new(key: &str, label: &str, kind: InputKind, required: bool) -> Self {
         Self {
             key: key.to_string(),
@@ -52,11 +53,13 @@ impl InputField {
         }
     }
 
+    #[must_use]
     pub fn with_example(mut self, example: &str) -> Self {
         self.example = Some(example.to_string());
         self
     }
 
+    #[must_use]
     pub fn with_description(mut self, description: &str) -> Self {
         self.description = Some(description.to_string());
         self
@@ -78,7 +81,7 @@ pub enum InputKind {
     Json,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AgentTier {
     Free,
     Paid,

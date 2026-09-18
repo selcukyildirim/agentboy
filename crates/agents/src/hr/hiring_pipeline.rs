@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct HiringPipelineAgent;
 
 impl HiringPipelineAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -71,7 +72,7 @@ impl Agent for HiringPipelineAgent {
             return Err(AppError::Validation("No candidates found".to_string()));
         }
 
-        let stages = vec![
+        let stages = [
             "applied",
             "screening",
             "interview",
@@ -106,10 +107,10 @@ impl Agent for HiringPipelineAgent {
             .filter(|c| csv_util::record_get_str(c, "stage") == "hired")
             .filter_map(|c| c.get("days_to_hire").and_then(|v| v.parse::<f64>().ok()))
             .collect();
-        let avg_time_to_hire = if !time_to_hires.is_empty() {
-            time_to_hires.iter().sum::<f64>() / time_to_hires.len() as f64
-        } else {
+        let avg_time_to_hire = if time_to_hires.is_empty() {
             0.0
+        } else {
+            time_to_hires.iter().sum::<f64>() / time_to_hires.len() as f64
         };
 
         let by_position = csv_util::group_by(&candidates, "position");

@@ -16,13 +16,14 @@ pub trait SecureStore: Send + Sync {
 pub struct OsKeychainStore;
 
 impl OsKeychainStore {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 
     fn entry_for_provider(&self, provider: &str) -> AppResult<Entry> {
         Entry::new(SERVICE_NAME, provider)
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("Keychain error: {}", e)))
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("Keychain error: {e}")))
     }
 }
 
@@ -37,11 +38,11 @@ impl SecureStore for OsKeychainStore {
     async fn save_credential(&self, cred: &StoredCredential) -> AppResult<()> {
         let entry = self.entry_for_provider(&cred.provider)?;
         let payload = serde_json::to_string(cred)
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("Serialize error: {}", e)))?;
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("Serialize error: {e}")))?;
 
         entry
             .set_password(&payload)
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("Keychain save error: {}", e)))?;
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("Keychain save error: {e}")))?;
 
         Ok(())
     }
@@ -52,13 +53,12 @@ impl SecureStore for OsKeychainStore {
         match entry.get_password() {
             Ok(payload) => {
                 let cred: StoredCredential = serde_json::from_str(&payload)
-                    .map_err(|e| AppError::Internal(anyhow::anyhow!("Deserialize error: {}", e)))?;
+                    .map_err(|e| AppError::Internal(anyhow::anyhow!("Deserialize error: {e}")))?;
                 Ok(Some(cred))
             }
             Err(keyring::Error::NoEntry) => Ok(None),
             Err(e) => Err(AppError::Internal(anyhow::anyhow!(
-                "Keychain read error: {}",
-                e
+                "Keychain read error: {e}"
             ))),
         }
     }
@@ -70,8 +70,7 @@ impl SecureStore for OsKeychainStore {
             Ok(()) => Ok(()),
             Err(keyring::Error::NoEntry) => Ok(()),
             Err(e) => Err(AppError::Internal(anyhow::anyhow!(
-                "Keychain delete error: {}",
-                e
+                "Keychain delete error: {e}"
             ))),
         }
     }

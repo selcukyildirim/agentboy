@@ -141,7 +141,7 @@ impl DocumentParser for JsonParser {
     async fn parse(&self, content: &[u8], filename: &str) -> AppResult<ParsedDocument> {
         let text = String::from_utf8_lossy(content).to_string();
         let value: serde_json::Value = serde_json::from_str(&text)
-            .map_err(|e| AppError::Validation(format!("JSON parse error: {}", e)))?;
+            .map_err(|e| AppError::Validation(format!("JSON parse error: {e}")))?;
 
         let formatted = serde_json::to_string_pretty(&value).unwrap_or_default();
 
@@ -226,8 +226,8 @@ impl DocumentParser for XlsxParser {
 
         let sheet_count = tables.len();
         let sections = vec![Section {
-            heading: Some(format!("{} sheets", sheet_count)),
-            content: format!("Spreadsheet with {} sheet(s)", sheet_count),
+            heading: Some(format!("{sheet_count} sheets")),
+            content: format!("Spreadsheet with {sheet_count} sheet(s)"),
             level: 1,
             page: None,
         }];
@@ -320,7 +320,14 @@ pub struct AutoParser {
     parsers: Vec<Box<dyn DocumentParser>>,
 }
 
+impl Default for AutoParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AutoParser {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             parsers: vec![
@@ -335,6 +342,7 @@ impl AutoParser {
         }
     }
 
+    #[must_use]
     pub fn detect_type(filename: &str) -> DocumentType {
         let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
         match ext.as_str() {
@@ -370,12 +378,12 @@ impl DocumentParser for AutoParser {
             }
         }
         Err(AppError::Validation(format!(
-            "Unsupported file type: {}",
-            ext
+            "Unsupported file type: {ext}"
         )))
     }
 }
 
+#[must_use]
 pub fn extract_text(doc: &ParsedDocument) -> String {
     let mut text = String::new();
     for section in &doc.sections {
@@ -389,6 +397,7 @@ pub fn extract_text(doc: &ParsedDocument) -> String {
     text.trim().to_string()
 }
 
+#[must_use]
 pub fn extract_tables_as_text(doc: &ParsedDocument) -> String {
     let mut text = String::new();
     for (i, table) in doc.tables.iter().enumerate() {

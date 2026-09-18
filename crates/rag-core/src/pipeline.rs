@@ -36,24 +36,27 @@ pub struct RagPipeline {
 }
 
 impl RagPipeline {
+    #[must_use]
     pub fn new(embedding_provider: Box<dyn EmbeddingProvider>) -> Self {
         Self {
             chunker: StructureAwareChunker::new(512, 50),
             vector_index: VectorIndex::new(),
             bm25: BM25Retriever::new(),
             merger: RetrievalMerger::default(),
-            reranker: Reranker::default(),
+            reranker: Reranker,
             embedding_provider,
             document_names: HashMap::new(),
         }
     }
 
-    pub fn with_chunk_size(mut self, max_chunk_size: usize, overlap: usize) -> Self {
+    #[must_use]
+    pub const fn with_chunk_size(mut self, max_chunk_size: usize, overlap: usize) -> Self {
         self.chunker = StructureAwareChunker::new(max_chunk_size, overlap);
         self
     }
 
-    pub fn with_weights(mut self, vector_weight: f32, bm25_weight: f32) -> Self {
+    #[must_use]
+    pub const fn with_weights(mut self, vector_weight: f32, bm25_weight: f32) -> Self {
         self.merger = RetrievalMerger::new(vector_weight, bm25_weight);
         self
     }
@@ -152,11 +155,13 @@ impl RagPipeline {
         self.vector_index.delete_by_document(document_id)
     }
 
+    #[must_use]
     pub fn document_count(&self) -> usize {
         self.document_names.len()
     }
 
-    pub fn chunk_count(&self) -> usize {
+    #[must_use]
+    pub const fn chunk_count(&self) -> usize {
         self.vector_index.count()
     }
 }

@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct ExpenseAnalystAgent;
 
 impl ExpenseAnalystAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -79,10 +80,10 @@ impl Agent for ExpenseAnalystAgent {
             .iter()
             .map(|r| csv_util::record_get_f64(r, "amount"))
             .collect();
-        let avg = if !amounts.is_empty() {
-            amounts.iter().sum::<f64>() / amounts.len() as f64
-        } else {
+        let avg = if amounts.is_empty() {
             0.0
+        } else {
+            amounts.iter().sum::<f64>() / amounts.len() as f64
         };
         let std_dev = csv_util::standard_deviation(&amounts);
         let p95 = csv_util::percentile(&amounts, 95.0);

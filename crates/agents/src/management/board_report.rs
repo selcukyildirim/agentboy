@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct BoardReportAgent;
 impl BoardReportAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -62,10 +63,10 @@ impl Agent for BoardReportAgent {
             return Err(AppError::Validation("No metrics".to_string()));
         }
 
-        let mut analysis: Vec<serde_json::Value> = metrics.iter().map(|m| {
+        let analysis: Vec<serde_json::Value> = metrics.iter().map(|m| {
             let current = csv_util::record_get_f64(m, "current");
             let prev = csv_util::record_get_f64(m, "previous");
-            let change = if prev != 0.0 { (current - prev) / prev * 100.0 } else { 0.0 };
+            let change = if prev == 0.0 { 0.0 } else { (current - prev) / prev * 100.0 };
             let trend = if change > 5.0 { "improving" } else if change < -5.0 { "declining" } else { "stable" };
             serde_json::json!({ "metric": csv_util::record_get_str(m, "metric"), "current": current, "previous": prev, "change_pct": change, "trend": trend })
         }).collect();

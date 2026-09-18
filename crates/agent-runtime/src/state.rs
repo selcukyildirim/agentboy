@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ExecutionState {
     Pending,
     Planning,
@@ -13,38 +13,37 @@ pub enum ExecutionState {
 }
 
 impl ExecutionState {
-    pub fn is_terminal(&self) -> bool {
+    #[must_use]
+    pub const fn is_terminal(&self) -> bool {
         matches!(
             self,
-            ExecutionState::Completed
-                | ExecutionState::Failed { .. }
-                | ExecutionState::Cancelled { .. }
+            Self::Completed | Self::Failed { .. } | Self::Cancelled { .. }
         )
     }
 
-    pub fn can_transition_to(&self, next: &ExecutionState) -> bool {
-        use ExecutionState::*;
+    #[must_use]
+    pub const fn can_transition_to(&self, next: &Self) -> bool {
+        use ExecutionState::{
+            CallingLLM, Cancelled, Completed, ExecutingTool, Failed, Pending, Planning, Validating,
+        };
         matches!(
             (self, next),
-            (Pending, Planning)
-                | (Planning, ExecutingTool { .. })
-                | (Planning, CallingLLM { .. })
-                | (Planning, Validating)
-                | (ExecutingTool { .. }, Planning)
+            (Pending | ExecutingTool { .. } | CallingLLM { .. }, Planning)
+                | (
+                    Planning,
+                    ExecutingTool { .. }
+                        | CallingLLM { .. }
+                        | Validating
+                        | Failed { .. }
+                        | Cancelled { .. }
+                )
                 | (ExecutingTool { .. }, CallingLLM { .. })
-                | (ExecutingTool { .. }, Validating)
-                | (CallingLLM { .. }, Planning)
+                | (ExecutingTool { .. } | CallingLLM { .. }, Validating)
                 | (CallingLLM { .. }, ExecutingTool { .. })
-                | (CallingLLM { .. }, Validating)
-                | (Validating, Completed)
-                | (Validating, Failed { .. })
-                | (Pending, Failed { .. })
-                | (Planning, Failed { .. })
-                | (Pending, Cancelled { .. })
-                | (Planning, Cancelled { .. })
+                | (Validating, Completed | Failed { .. } | Cancelled { .. })
+                | (Pending, Failed { .. } | Cancelled { .. })
                 | (ExecutingTool { .. }, Cancelled { .. })
                 | (CallingLLM { .. }, Cancelled { .. })
-                | (Validating, Cancelled { .. })
         )
     }
 }
@@ -66,18 +65,20 @@ pub struct StepGuard {
 }
 
 impl StepGuard {
-    pub fn new(max_steps: u32) -> Self {
+    #[must_use]
+    pub const fn new(max_steps: u32) -> Self {
         Self {
             max_steps,
             current_step: 0,
         }
     }
 
-    pub fn can_proceed(&self) -> bool {
+    #[must_use]
+    pub const fn can_proceed(&self) -> bool {
         self.current_step < self.max_steps
     }
 
-    pub fn increment(&mut self) -> AppResult<u32> {
+    pub const fn increment(&mut self) -> AppResult<u32> {
         if !self.can_proceed() {
             return Err(AppError::ExecutionLimitExceeded {
                 limit: self.max_steps,
@@ -87,11 +88,13 @@ impl StepGuard {
         Ok(self.current_step)
     }
 
-    pub fn current(&self) -> u32 {
+    #[must_use]
+    pub const fn current(&self) -> u32 {
         self.current_step
     }
 
-    pub fn remaining(&self) -> u32 {
+    #[must_use]
+    pub const fn remaining(&self) -> u32 {
         self.max_steps.saturating_sub(self.current_step)
     }
 }
@@ -126,8 +129,7 @@ impl OutputValidator {
             };
             if actual_type != expected_type {
                 return Err(AppError::Validation(format!(
-                    "Expected type '{}', got '{}'",
-                    expected_type, actual_type
+                    "Expected type '{expected_type}', got '{actual_type}'"
                 )));
             }
         }
@@ -138,8 +140,7 @@ impl OutputValidator {
                     if let Some(field_name) = field.as_str() {
                         if !obj.contains_key(field_name) {
                             return Err(AppError::Validation(format!(
-                                "Missing required field: {}",
-                                field_name
+                                "Missing required field: {field_name}"
                             )));
                         }
                     }

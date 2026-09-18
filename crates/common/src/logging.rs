@@ -1,3 +1,4 @@
+#[allow(clippy::module_inception)]
 pub mod logging {
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::{fmt, EnvFilter, Layer, Registry};
@@ -19,6 +20,7 @@ pub mod logging {
             .expect("Failed to set global subscriber");
     }
 
+    #[must_use]
     pub fn correlation_id() -> String {
         uuid::Uuid::new_v4().to_string()
     }
@@ -42,23 +44,24 @@ pub mod secret_filter {
                 },
                 SecretPattern {
                     pattern: regex::Regex::new(
-                        r#"(?i)bearer\s+[A-Za-z0-9\-._~+/]+=*"#
+                        r"(?i)bearer\s+[A-Za-z0-9\-._~+/]+=*"
                     ).unwrap(),
                 },
                 SecretPattern {
                     pattern: regex::Regex::new(
-                        r#"(?i)sk-[A-Za-z0-9]{20,}"#
+                        r"(?i)sk-[A-Za-z0-9]{20,}"
                     ).unwrap(),
                 },
                 SecretPattern {
                     pattern: regex::Regex::new(
-                        r#"(?i)ghp_[A-Za-z0-9]{36}"#
+                        r"(?i)ghp_[A-Za-z0-9]{36}"
                     ).unwrap(),
                 },
             ]
         })
     }
 
+    #[must_use]
     pub fn redact(input: &str) -> String {
         let mut result = input.to_string();
         for p in patterns() {

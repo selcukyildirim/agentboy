@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EvidenceSource {
     Document,
     Spreadsheet,
@@ -10,7 +10,7 @@ pub enum EvidenceSource {
     Unknown,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EvidenceReliability {
     High,
     Medium,
@@ -31,6 +31,7 @@ pub struct Evidence {
 }
 
 impl Evidence {
+    #[must_use]
     pub fn new(
         claim: &str,
         source: EvidenceSource,
@@ -49,7 +50,8 @@ impl Evidence {
         }
     }
 
-    pub fn with_reliability(mut self, reliability: EvidenceReliability) -> Self {
+    #[must_use]
+    pub const fn with_reliability(mut self, reliability: EvidenceReliability) -> Self {
         self.reliability = reliability;
         self
     }
@@ -58,10 +60,12 @@ impl Evidence {
 pub struct EvidenceValidator;
 
 impl EvidenceValidator {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 
+    #[must_use]
     pub fn validate(&self, evidence: &Evidence) -> ValidationResult {
         let mut issues = Vec::new();
 
@@ -89,6 +93,7 @@ impl EvidenceValidator {
         }
     }
 
+    #[must_use]
     pub fn cross_validate(&self, evidences: &[Evidence]) -> CrossValidationResult {
         let claims: Vec<&str> = evidences.iter().map(|e| e.claim.as_str()).collect();
         let unique_claims: std::collections::HashSet<&str> = claims.iter().copied().collect();
@@ -147,7 +152,7 @@ pub struct ValidationIssue {
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum IssueSeverity {
     Info,
     Warning,

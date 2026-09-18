@@ -7,7 +7,8 @@ use agent_runtime::manifest::{
 
 pub struct DecisionMatrixAgent;
 impl DecisionMatrixAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -71,7 +72,10 @@ impl Agent for DecisionMatrixAgent {
                 let mut details = serde_json::Map::new();
                 for (criterion, weight) in &weights {
                     let w = weight.as_f64().unwrap_or(0.0);
-                    let score = opt.get(criterion).and_then(|v| v.as_f64()).unwrap_or(0.5);
+                    let score = opt
+                        .get(criterion)
+                        .and_then(serde_json::Value::as_f64)
+                        .unwrap_or(0.5);
                     total += score * w;
                     details.insert(
                         criterion.clone(),

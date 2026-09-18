@@ -19,6 +19,7 @@ pub struct Orchestrator {
 }
 
 impl Orchestrator {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             executions: Arc::new(RwLock::new(HashMap::new())),
@@ -32,7 +33,7 @@ impl Orchestrator {
         &self,
         agent_id: &str,
         agent_version: &str,
-        input: serde_json::Value,
+        _input: serde_json::Value,
         max_steps: u32,
         timeout_seconds: u64,
     ) -> AppResult<ExecutionId> {
@@ -82,18 +83,12 @@ impl Orchestrator {
 
         if !current.can_transition_to(&new_state) {
             return Err(AppError::InvalidStateTransition {
-                from: format!("{:?}", current),
-                to: format!("{:?}", new_state),
+                from: format!("{current:?}"),
+                to: format!("{new_state:?}"),
             });
         }
 
         states.insert(id.clone(), new_state.clone());
-
-        if new_state.is_terminal() {
-            if let Some(mut ctx) = self.executions.write().await.get_mut(&id) {
-                ctx.step = ctx.step;
-            }
-        }
 
         Ok(())
     }
@@ -119,7 +114,7 @@ impl Orchestrator {
         states
             .get(&execution_id.to_string())
             .cloned()
-            .ok_or_else(|| AppError::NotFound(format!("Execution {} not found", execution_id)))
+            .ok_or_else(|| AppError::NotFound(format!("Execution {execution_id} not found")))
     }
 
     pub async fn get_steps(&self, execution_id: ExecutionId) -> AppResult<Vec<ExecutionStep>> {

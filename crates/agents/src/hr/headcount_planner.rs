@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct HeadcountPlannerAgent;
 
 impl HeadcountPlannerAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -65,11 +66,7 @@ impl Agent for HeadcountPlannerAgent {
                 let expected_attrition = csv_util::record_get_f64(d, "expected_attrition") as u64;
                 let open_positions = csv_util::record_get_f64(d, "open_positions") as u64;
 
-                let gap = if target > current {
-                    target - current
-                } else {
-                    0
-                };
+                let gap = target.saturating_sub(current);
                 let net_hiring = gap + expected_attrition;
                 let urgency = if net_hiring > open_positions {
                     "critical"

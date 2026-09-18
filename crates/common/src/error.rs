@@ -48,7 +48,8 @@ pub enum AppError {
     NotFound(String),
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[allow(non_camel_case_types)] // error codes are intentionally SCREAMING_CASE
 pub enum ErrorCode {
     AUTH_INVALID_CREDENTIALS,
     AUTH_TOKEN_EXPIRED,
@@ -76,19 +77,20 @@ pub enum ErrorCode {
 
 impl fmt::Display for ErrorCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
 impl AppError {
     /// Stable error code for API responses and client handling.
+    #[must_use]
     pub fn error_code(&self) -> ErrorCode {
         match self {
-            AppError::UserFacing { code, .. } => code.clone(),
-            AppError::Internal(_) => ErrorCode::INTERNAL_ERROR,
-            AppError::Config(_) => ErrorCode::INTERNAL_ERROR,
-            AppError::Database(_) => ErrorCode::DATABASE_ERROR,
-            AppError::Provider { message, .. } => {
+            Self::UserFacing { code, .. } => code.clone(),
+            Self::Internal(_) => ErrorCode::INTERNAL_ERROR,
+            Self::Config(_) => ErrorCode::INTERNAL_ERROR,
+            Self::Database(_) => ErrorCode::DATABASE_ERROR,
+            Self::Provider { message, .. } => {
                 if message.contains("rate") || message.contains("429") {
                     ErrorCode::PROVIDER_RATE_LIMITED
                 } else if message.contains("auth") || message.contains("401") {
@@ -97,44 +99,45 @@ impl AppError {
                     ErrorCode::PROVIDER_UNAVAILABLE
                 }
             }
-            AppError::Entitlement(_) => ErrorCode::ENTITLEMENT_DENIED,
-            AppError::PolicyDenied(_) => ErrorCode::POLICY_DENIED,
-            AppError::EgressBlocked { .. } => ErrorCode::EGRESS_BLOCKED,
-            AppError::Validation(_) => ErrorCode::VALIDATION_ERROR,
-            AppError::ToolPermissionDenied { .. } => ErrorCode::TOOL_ACCESS_DENIED,
-            AppError::ToolExecutionFailed { .. } => ErrorCode::INTERNAL_ERROR,
-            AppError::ExecutionLimitExceeded { .. } => ErrorCode::EXECUTION_LIMIT_EXCEEDED,
-            AppError::ExecutionCancelled { .. } => ErrorCode::EXECUTION_CANCELLED,
-            AppError::InvalidStateTransition { .. } => ErrorCode::INVALID_STATE_TRANSITION,
-            AppError::NotFound(_) => ErrorCode::NOT_FOUND,
+            Self::Entitlement(_) => ErrorCode::ENTITLEMENT_DENIED,
+            Self::PolicyDenied(_) => ErrorCode::POLICY_DENIED,
+            Self::EgressBlocked { .. } => ErrorCode::EGRESS_BLOCKED,
+            Self::Validation(_) => ErrorCode::VALIDATION_ERROR,
+            Self::ToolPermissionDenied { .. } => ErrorCode::TOOL_ACCESS_DENIED,
+            Self::ToolExecutionFailed { .. } => ErrorCode::INTERNAL_ERROR,
+            Self::ExecutionLimitExceeded { .. } => ErrorCode::EXECUTION_LIMIT_EXCEEDED,
+            Self::ExecutionCancelled { .. } => ErrorCode::EXECUTION_CANCELLED,
+            Self::InvalidStateTransition { .. } => ErrorCode::INVALID_STATE_TRANSITION,
+            Self::NotFound(_) => ErrorCode::NOT_FOUND,
         }
     }
 
     /// A client-safe message. Internal/database/provider/storage details are
     /// replaced with generic text so internals do not leak to the UI.
+    #[must_use]
     pub fn user_message(&self) -> String {
         match self {
-            AppError::UserFacing { message, .. } => message.clone(),
-            AppError::Validation(m) => m.clone(),
-            AppError::Entitlement(m) => m.clone(),
-            AppError::PolicyDenied(m) => m.clone(),
-            AppError::EgressBlocked { reason } => reason.clone(),
-            AppError::ExecutionCancelled { reason } => reason.clone(),
-            AppError::ExecutionLimitExceeded { limit } => {
+            Self::UserFacing { message, .. } => message.clone(),
+            Self::Validation(m) => m.clone(),
+            Self::Entitlement(m) => m.clone(),
+            Self::PolicyDenied(m) => m.clone(),
+            Self::EgressBlocked { reason } => reason.clone(),
+            Self::ExecutionCancelled { reason } => reason.clone(),
+            Self::ExecutionLimitExceeded { limit } => {
                 format!("Execution step limit exceeded ({limit})")
             }
-            AppError::InvalidStateTransition { from, to } => {
+            Self::InvalidStateTransition { from, to } => {
                 format!("Invalid state transition: {from} -> {to}")
             }
-            AppError::NotFound(m) => m.clone(),
-            AppError::ToolPermissionDenied { tool, reason } => {
+            Self::NotFound(m) => m.clone(),
+            Self::ToolPermissionDenied { tool, reason } => {
                 format!("Tool '{tool}' denied: {reason}")
             }
-            AppError::Provider { provider, .. } => {
+            Self::Provider { provider, .. } => {
                 format!("AI provider '{provider}' request failed")
             }
-            AppError::Database(_) => "A local storage error occurred".to_string(),
-            AppError::Config(_) | AppError::Internal(_) | AppError::ToolExecutionFailed { .. } => {
+            Self::Database(_) => "A local storage error occurred".to_string(),
+            Self::Config(_) | Self::Internal(_) | Self::ToolExecutionFailed { .. } => {
                 "An internal error occurred".to_string()
             }
         }
@@ -142,7 +145,7 @@ impl AppError {
 }
 
 /// Stable, serializable error envelope: `{ "code": "...", "message": "..." }`.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ApiError {
     pub code: ErrorCode,
     pub message: String,
@@ -181,7 +184,7 @@ pub struct ApiResponse<T> {
 }
 
 impl<T> ApiResponse<T> {
-    pub fn ok(data: T) -> Self {
+    pub const fn ok(data: T) -> Self {
         Self {
             success: true,
             data: Some(data),
@@ -189,7 +192,8 @@ impl<T> ApiResponse<T> {
         }
     }
 
-    pub fn err(error: ApiError) -> Self {
+    #[must_use]
+    pub const fn err(error: ApiError) -> Self {
         Self {
             success: false,
             data: None,

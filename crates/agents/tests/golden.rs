@@ -9,7 +9,7 @@ fn fixture(name: &str) -> String {
         env!("CARGO_MANIFEST_DIR"),
         name
     );
-    fs::read_to_string(&path).unwrap_or_else(|e| panic!("Failed to read fixture {}: {}", name, e))
+    fs::read_to_string(&path).unwrap_or_else(|e| panic!("Failed to read fixture {name}: {e}"))
 }
 
 fn mock_ctx() -> MockAgentContext {
@@ -35,11 +35,7 @@ async fn golden_bank_reconciliation() {
     assert!(result["matched_count"].as_u64().unwrap() >= 7);
     assert!(result["unmatched_bank_count"].as_u64().unwrap() >= 2);
     let total = result["summary"]["total_bank_amount"].as_f64().unwrap();
-    assert!(
-        (total - 26552.00).abs() < 0.01,
-        "unexpected total: {}",
-        total
-    );
+    assert!((total - 26552.00).abs() < 0.01, "unexpected total: {total}");
     assert!(result["llm_analysis"].as_str().is_some());
 }
 

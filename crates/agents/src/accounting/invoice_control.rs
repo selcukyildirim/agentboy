@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 pub struct InvoiceControlAgent;
 
 impl InvoiceControlAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }

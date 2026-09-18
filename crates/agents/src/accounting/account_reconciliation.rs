@@ -10,7 +10,8 @@ use crate::csv_util;
 pub struct AccountReconciliationAgent;
 
 impl AccountReconciliationAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }

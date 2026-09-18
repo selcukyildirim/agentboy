@@ -23,21 +23,23 @@ pub fn parse_csv_to_maps(csv: &str) -> AppResult<Vec<HashMap<String, String>>> {
     Ok(records)
 }
 
+#[must_use]
 pub fn sanitize_csv_value(s: &str) -> String {
     let trimmed = s.trim();
     if let Some(first) = trimmed.chars().next() {
         if matches!(first, '=' | '+' | '-' | '@' | '\t' | '\r' | '\n') {
-            return format!("'{}", trimmed);
+            return format!("'{trimmed}");
         }
     }
     s.to_string()
 }
 
+#[must_use]
 pub fn sanitize_csv_content(csv: &str) -> String {
     csv.lines()
         .map(|line| {
             line.split(',')
-                .map(|field| sanitize_csv_value(field))
+                .map(sanitize_csv_value)
                 .collect::<Vec<_>>()
                 .join(",")
         })
@@ -45,6 +47,7 @@ pub fn sanitize_csv_content(csv: &str) -> String {
         .join("\n")
 }
 
+#[must_use]
 pub fn parse_f64_locale(s: &str) -> Option<f64> {
     let trimmed = s.trim();
     if trimmed.is_empty() {
@@ -56,17 +59,17 @@ pub fn parse_f64_locale(s: &str) -> Option<f64> {
 
     match (has_dot, has_comma) {
         (true, true) => {
-            let last_separator = trimmed.rfind(|c| c == '.' || c == ',');
+            let last_separator = trimmed.rfind(['.', ',']);
             if let Some(pos) = last_separator {
                 let integer_part: String = trimmed[..pos]
                     .chars()
-                    .filter(|c| c.is_ascii_digit())
+                    .filter(char::is_ascii_digit)
                     .collect();
                 let decimal_part: String = trimmed[pos + 1..]
                     .chars()
-                    .filter(|c| c.is_ascii_digit())
+                    .filter(char::is_ascii_digit)
                     .collect();
-                let combined = format!("{}.{}", integer_part, decimal_part);
+                let combined = format!("{integer_part}.{decimal_part}");
                 combined.parse::<f64>().ok()
             } else {
                 None
@@ -85,15 +88,13 @@ pub fn parse_f64_locale(s: &str) -> Option<f64> {
                 .filter(|c| c.is_ascii_digit() || *c == ',')
                 .collect();
             if let Some(pos) = clean.rfind(',') {
-                let integer_part: String = clean[..pos]
-                    .chars()
-                    .filter(|c| c.is_ascii_digit())
-                    .collect();
+                let integer_part: String =
+                    clean[..pos].chars().filter(char::is_ascii_digit).collect();
                 let decimal_part: String = clean[pos + 1..]
                     .chars()
-                    .filter(|c| c.is_ascii_digit())
+                    .filter(char::is_ascii_digit)
                     .collect();
-                let combined = format!("{}.{}", integer_part, decimal_part);
+                let combined = format!("{integer_part}.{decimal_part}");
                 combined.parse::<f64>().ok()
             } else {
                 clean.parse::<f64>().ok()
@@ -127,6 +128,7 @@ pub fn parse_csv_column_f64(
     Ok(result)
 }
 
+#[must_use]
 pub fn csv_record_to_json(record: &HashMap<String, String>) -> serde_json::Value {
     serde_json::Value::Object(
         record
@@ -140,6 +142,7 @@ pub fn records_to_json(records: &[HashMap<String, String>]) -> Vec<serde_json::V
     records.iter().map(csv_record_to_json).collect()
 }
 
+#[must_use]
 pub fn record_get_f64(record: &HashMap<String, String>, key: &str) -> f64 {
     record
         .get(key)
@@ -147,10 +150,12 @@ pub fn record_get_f64(record: &HashMap<String, String>, key: &str) -> f64 {
         .unwrap_or(0.0)
 }
 
+#[must_use]
 pub fn record_get_str<'a>(record: &'a HashMap<String, String>, key: &str) -> &'a str {
-    record.get(key).map(|s| s.as_str()).unwrap_or("")
+    record.get(key).map_or("", std::string::String::as_str)
 }
 
+#[must_use]
 pub fn group_by<'a>(
     records: &'a [HashMap<String, String>],
     key: &str,
@@ -163,6 +168,7 @@ pub fn group_by<'a>(
     groups
 }
 
+#[must_use]
 pub fn sum_by(
     records: &[HashMap<String, String>],
     group_key: &str,
@@ -177,6 +183,7 @@ pub fn sum_by(
     result
 }
 
+#[must_use]
 pub fn detect_duplicates(
     records: &[HashMap<String, String>],
     keys: &[&str],
@@ -211,6 +218,7 @@ pub fn detect_duplicates(
     duplicates
 }
 
+#[must_use]
 pub fn standard_deviation(values: &[f64]) -> f64 {
     if values.is_empty() {
         return 0.0;
@@ -220,10 +228,12 @@ pub fn standard_deviation(values: &[f64]) -> f64 {
     variance.sqrt()
 }
 
-pub fn all_empty(records: &[HashMap<String, String>]) -> bool {
+#[must_use]
+pub const fn all_empty(records: &[HashMap<String, String>]) -> bool {
     records.is_empty()
 }
 
+#[must_use]
 pub fn empty_response(agent: &str, inputs: &[&str]) -> serde_json::Value {
     serde_json::json!({
         "status": "no_data",
@@ -233,6 +243,7 @@ pub fn empty_response(agent: &str, inputs: &[&str]) -> serde_json::Value {
     })
 }
 
+#[must_use]
 pub fn percentile(values: &[f64], p: f64) -> f64 {
     let mut sorted: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
     if sorted.is_empty() {

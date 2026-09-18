@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct ResourceAllocatorAgent;
 impl ResourceAllocatorAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -66,7 +67,7 @@ impl Agent for ResourceAllocatorAgent {
             return Err(AppError::Validation("No resources".to_string()));
         }
 
-        let mut analysis: Vec<serde_json::Value> = resources.iter().map(|r| {
+        let analysis: Vec<serde_json::Value> = resources.iter().map(|r| {
             let capacity = csv_util::record_get_f64(r, "capacity_hours");
             let allocated = csv_util::record_get_f64(r, "allocated_hours");
             let util = if capacity > 0.0 { allocated / capacity * 100.0 } else { 0.0 };

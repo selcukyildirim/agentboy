@@ -67,6 +67,7 @@ pub struct WorkflowVersion {
 }
 
 impl Workflow {
+    #[must_use]
     pub fn new(id: &str, name: &str) -> Self {
         let now = chrono::Utc::now().to_rfc3339();
         Self {
@@ -110,6 +111,7 @@ impl Workflow {
         }
     }
 
+    #[must_use]
     pub fn resolve_input(
         &self,
         step: &WorkflowStep,
@@ -119,7 +121,7 @@ impl Workflow {
         if let Some(ref mapping) = step.input_mapping {
             let mut resolved = mapping.clone();
             if let Some(obj) = resolved.as_object_mut() {
-                for (key, value) in obj.iter_mut() {
+                for (_key, value) in obj.iter_mut() {
                     if let Some(param_name) = value.as_str().and_then(|s| s.strip_prefix("$param."))
                     {
                         if let Some(param_val) = params.get(param_name) {

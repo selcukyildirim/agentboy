@@ -43,7 +43,7 @@ pub fn init(pool: SqlitePool) {
 pub async fn cache_get(key: &str) -> Option<CachedLlmResult> {
     // L1 in-memory.
     if let Some(entry) = l1_cache().get(key).await {
-        let mut m = agent_common::sync::lock(&cache_metrics());
+        let mut m = agent_common::sync::lock(cache_metrics());
         m.record_llm_hit(0);
         m.record_l1_hit();
         return Some(entry);
@@ -55,7 +55,7 @@ pub async fn cache_get(key: &str) -> Option<CachedLlmResult> {
         Some(value) => {
             if let Ok(entry) = serde_json::from_str::<CachedLlmResult>(&value) {
                 l1_cache().insert(key.to_string(), entry.clone()).await;
-                let mut m = agent_common::sync::lock(&cache_metrics());
+                let mut m = agent_common::sync::lock(cache_metrics());
                 m.record_llm_hit(0);
                 m.record_l2_hit();
                 Some(entry)
@@ -64,7 +64,7 @@ pub async fn cache_get(key: &str) -> Option<CachedLlmResult> {
             }
         }
         None => {
-            let mut m = agent_common::sync::lock(&cache_metrics());
+            let mut m = agent_common::sync::lock(cache_metrics());
             m.record_llm_miss();
             m.record_l1_miss();
             m.record_l2_miss();
@@ -102,7 +102,7 @@ pub async fn persistent_entry_count() -> u64 {
 }
 
 pub fn cache_metrics_snapshot() -> CacheUsageMetrics {
-    agent_common::sync::lock(&cache_metrics()).clone()
+    agent_common::sync::lock(cache_metrics()).clone()
 }
 
 /// Record provider-native prompt-cache token usage (cache-core prompt cache).
@@ -114,7 +114,7 @@ pub fn record_prompt_cache(provider: &str, cache_hit: bool, read_tokens: u32, wr
         cache_core::prompt_cache::PromptCacheMode::Auto,
     );
     let normalized = abstraction.normalize_metrics(cache_hit, read_tokens, write_tokens, provider);
-    let mut m = agent_common::sync::lock(&cache_metrics());
+    let mut m = agent_common::sync::lock(cache_metrics());
     m.record_prompt_cache(normalized.cache_read_tokens, normalized.cache_write_tokens);
     m.add_cost_saving(normalized.estimated_saving_usd);
 }
@@ -144,7 +144,7 @@ where
     Fut: std::future::Future<Output = AppResult<T>>,
 {
     {
-        let mut limiters = agent_common::sync::lock(&limiters());
+        let mut limiters = agent_common::sync::lock(limiters());
         let limiter = limiters.entry(provider.to_string()).or_insert_with(|| {
             let mut r = RateLimiter::new();
             r.add_limit(provider, 60, 1.0);
@@ -159,7 +159,7 @@ where
     }
 
     {
-        let mut breakers = agent_common::sync::lock(&breakers());
+        let mut breakers = agent_common::sync::lock(breakers());
         let cb = breakers
             .entry(provider.to_string())
             .or_insert_with(|| CircuitBreaker::new(5, Duration::from_secs(30)));
@@ -178,7 +178,7 @@ where
         attempt += 1;
         match op().await {
             Ok(value) => {
-                if let Some(cb) = agent_common::sync::lock(&breakers()).get_mut(provider) {
+                if let Some(cb) = agent_common::sync::lock(breakers()).get_mut(provider) {
                     cb.record_success();
                 }
                 return Ok(value);
@@ -195,7 +195,7 @@ where
                     tokio::time::sleep(delay).await;
                     continue;
                 }
-                if let Some(cb) = agent_common::sync::lock(&breakers()).get_mut(provider) {
+                if let Some(cb) = agent_common::sync::lock(breakers()).get_mut(provider) {
                     cb.record_failure();
                 }
                 return Err(err);

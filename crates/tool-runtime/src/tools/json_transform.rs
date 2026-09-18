@@ -7,7 +7,8 @@ use async_trait::async_trait;
 pub struct JsonTransform;
 
 impl JsonTransform {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 
@@ -29,14 +30,14 @@ impl JsonTransform {
                     let new_key = if prefix.is_empty() {
                         key.clone()
                     } else {
-                        format!("{}.{}", prefix, key)
+                        format!("{prefix}.{key}")
                     };
                     self.flatten_inner(val, &new_key, result);
                 }
             }
             serde_json::Value::Array(arr) => {
                 for (i, val) in arr.iter().enumerate() {
-                    let new_key = format!("{}[{}]", prefix, i);
+                    let new_key = format!("{prefix}[{i}]");
                     self.flatten_inner(val, &new_key, result);
                 }
             }
@@ -143,8 +144,7 @@ impl Tool for JsonTransform {
             }
             "transform" => self.transform(data, &input["mapping"]),
             _ => Err(AppError::Validation(format!(
-                "Unknown operation: {}",
-                operation
+                "Unknown operation: {operation}"
             ))),
         }
     }

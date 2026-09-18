@@ -14,6 +14,7 @@ pub struct Citation {
 }
 
 impl Citation {
+    #[must_use]
     pub fn from_chunk(chunk: &Chunk, document_name: &str) -> Self {
         Self {
             id: format!("cite-{}-{}", chunk.document_id, chunk.chunk_id),
@@ -33,7 +34,8 @@ pub struct CitationManager {
 }
 
 impl CitationManager {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             citations: Vec::new(),
         }
@@ -43,10 +45,12 @@ impl CitationManager {
         self.citations.push(citation);
     }
 
+    #[must_use]
     pub fn get_citations(&self) -> &[Citation] {
         &self.citations
     }
 
+    #[must_use]
     pub fn format_citations(&self) -> String {
         self.citations
             .iter()
@@ -55,7 +59,7 @@ impl CitationManager {
                 let section = c
                     .section
                     .as_deref()
-                    .map(|s| format!(" - {}", s))
+                    .map(|s| format!(" - {s}"))
                     .unwrap_or_default();
                 format!(
                     "[{}] {}{} ({} p.{})",

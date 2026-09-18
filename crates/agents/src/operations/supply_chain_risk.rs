@@ -8,7 +8,8 @@ use agent_runtime::manifest::{
 
 pub struct SupplyChainRiskAgent;
 impl SupplyChainRiskAgent {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -42,7 +43,7 @@ impl Agent for SupplyChainRiskAgent {
         let mut risks: Vec<serde_json::Value> = by_component.iter().map(|(comp, sups)| {
             let single_source = sups.len() == 1;
             let lead_times: Vec<f64> = sups.iter().filter_map(|s| s.get("lead_time_days").and_then(|v| v.parse::<f64>().ok())).collect();
-            let avg_lead = if !lead_times.is_empty() { lead_times.iter().sum::<f64>() / lead_times.len() as f64 } else { 0.0 };
+            let avg_lead = if lead_times.is_empty() { 0.0 } else { lead_times.iter().sum::<f64>() / lead_times.len() as f64 };
             let risk_level = if single_source && avg_lead > 30.0 { "high" } else if single_source || avg_lead > 30.0 { "medium" } else { "low" };
             serde_json::json!({ "component": comp, "supplier_count": sups.len(), "single_source": single_source, "avg_lead_time_days": avg_lead, "risk_level": risk_level })
         }).collect();

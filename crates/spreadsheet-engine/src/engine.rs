@@ -8,16 +8,18 @@ pub fn read_csv(content: &[u8]) -> AppResult<crate::model::Spreadsheet> {
 
     let headers: Vec<String> = rdr
         .headers()
-        .map_err(|e| AppError::Validation(format!("CSV header error: {}", e)))?
+        .map_err(|e| AppError::Validation(format!("CSV header error: {e}")))?
         .iter()
-        .map(|h| h.to_string())
+        .map(std::string::ToString::to_string)
         .collect();
 
     let mut rows = Vec::new();
     for result in rdr.records() {
-        let record =
-            result.map_err(|e| AppError::Validation(format!("CSV record error: {}", e)))?;
-        let row: Vec<String> = record.iter().map(|field| field.to_string()).collect();
+        let record = result.map_err(|e| AppError::Validation(format!("CSV record error: {e}")))?;
+        let row: Vec<String> = record
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect();
         rows.push(row);
     }
 
@@ -41,16 +43,18 @@ pub fn read_csv_with_delimiter(
 
     let headers: Vec<String> = rdr
         .headers()
-        .map_err(|e| AppError::Validation(format!("CSV header error: {}", e)))?
+        .map_err(|e| AppError::Validation(format!("CSV header error: {e}")))?
         .iter()
-        .map(|h| h.to_string())
+        .map(std::string::ToString::to_string)
         .collect();
 
     let mut rows = Vec::new();
     for result in rdr.records() {
-        let record =
-            result.map_err(|e| AppError::Validation(format!("CSV record error: {}", e)))?;
-        let row: Vec<String> = record.iter().map(|field| field.to_string()).collect();
+        let record = result.map_err(|e| AppError::Validation(format!("CSV record error: {e}")))?;
+        let row: Vec<String> = record
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect();
         rows.push(row);
     }
 
@@ -65,15 +69,15 @@ pub fn read_csv_with_delimiter(
 
 pub fn read_xlsx(content: &[u8]) -> AppResult<crate::model::Spreadsheet> {
     let mut workbook: Xlsx<Cursor<&[u8]>> = open_workbook_from_rs(Cursor::new(content))
-        .map_err(|e| AppError::Validation(format!("XLSX open error: {}", e)))?;
+        .map_err(|e| AppError::Validation(format!("XLSX open error: {e}")))?;
 
-    let sheet_names = workbook.sheet_names().to_vec();
+    let sheet_names = workbook.sheet_names();
     let mut sheets = Vec::new();
 
     for name in &sheet_names {
         let range = workbook
             .worksheet_range(name)
-            .map_err(|e| AppError::Validation(format!("XLSX sheet error: {}", e)))?;
+            .map_err(|e| AppError::Validation(format!("XLSX sheet error: {e}")))?;
 
         let mut headers = Vec::new();
         let mut rows = Vec::new();
@@ -88,13 +92,13 @@ pub fn read_xlsx(content: &[u8]) -> AppResult<crate::model::Spreadsheet> {
                         if *f == (*f as i64) as f64 {
                             format!("{}", *f as i64)
                         } else {
-                            format!("{}", f)
+                            format!("{f}")
                         }
                     }
-                    calamine::Data::Int(n) => format!("{}", n),
-                    calamine::Data::Bool(b) => format!("{}", b),
-                    calamine::Data::Error(e) => format!("ERROR:{:?}", e),
-                    calamine::Data::DateTime(dt) => format!("{}", dt),
+                    calamine::Data::Int(n) => format!("{n}"),
+                    calamine::Data::Bool(b) => format!("{b}"),
+                    calamine::Data::Error(e) => format!("ERROR:{e:?}"),
+                    calamine::Data::DateTime(dt) => format!("{dt}"),
                     calamine::Data::DateTimeIso(s) => s.clone(),
                     calamine::Data::DurationIso(s) => s.clone(),
                 })
@@ -117,6 +121,7 @@ pub fn read_xlsx(content: &[u8]) -> AppResult<crate::model::Spreadsheet> {
     Ok(crate::model::Spreadsheet { sheets })
 }
 
+#[must_use]
 pub fn to_json(spreadsheet: &crate::model::Spreadsheet) -> serde_json::Value {
     let sheets: Vec<serde_json::Value> = spreadsheet
         .sheets
@@ -128,7 +133,7 @@ pub fn to_json(spreadsheet: &crate::model::Spreadsheet) -> serde_json::Value {
                 .map(|row| {
                     let mut obj = serde_json::Map::new();
                     for (i, header) in sheet.headers.iter().enumerate() {
-                        let value = row.get(i).map(|s| s.as_str()).unwrap_or("");
+                        let value = row.get(i).map_or("", std::string::String::as_str);
                         obj.insert(header.clone(), serde_json::Value::String(value.to_string()));
                     }
                     serde_json::Value::Object(obj)
@@ -150,6 +155,7 @@ pub fn to_json(spreadsheet: &crate::model::Spreadsheet) -> serde_json::Value {
     })
 }
 
+#[must_use]
 pub fn summarize(spreadsheet: &crate::model::Spreadsheet) -> serde_json::Value {
     let sheets_summary: Vec<serde_json::Value> = spreadsheet
         .sheets
@@ -184,8 +190,8 @@ pub fn summarize(spreadsheet: &crate::model::Spreadsheet) -> serde_json::Value {
                     let sum: f64 = values.iter().sum();
                     let count = values.len() as f64;
                     let mean = sum / count;
-                    let min = values.iter().cloned().fold(f64::INFINITY, f64::min);
-                    let max = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+                    let min = values.iter().copied().fold(f64::INFINITY, f64::min);
+                    let max = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
 
                     column_stats.insert(
                         col_name.clone(),
@@ -241,12 +247,12 @@ pub fn filter_rows(
             .headers
             .iter()
             .position(|h| h == column)
-            .ok_or_else(|| AppError::Validation(format!("Column '{}' not found", column)))?;
+            .ok_or_else(|| AppError::Validation(format!("Column '{column}' not found")))?;
 
         let filtered_rows: Vec<Vec<String>> = sheet
             .rows
             .iter()
-            .filter(|row| row.get(col_idx).map(|v| predicate(v)).unwrap_or(false))
+            .filter(|row| row.get(col_idx).is_some_and(|v| predicate(v)))
             .cloned()
             .collect();
 

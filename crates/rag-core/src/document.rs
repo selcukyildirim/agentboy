@@ -46,6 +46,7 @@ pub struct Section {
 }
 
 impl Document {
+    #[must_use]
     pub fn new(id: &str, name: &str, content_type: ContentType, raw_content: String) -> Self {
         Self {
             id: id.to_string(),
@@ -65,10 +66,11 @@ impl Document {
         }
     }
 
+    #[must_use]
     pub fn plain_text(id: &str, name: &str, content: &str) -> Self {
         let mut doc = Self::new(id, name, ContentType::Txt, content.to_string());
         doc.sections.push(Section {
-            id: format!("{}-s0", id),
+            id: format!("{id}-s0"),
             title: None,
             level: 0,
             content: content.to_string(),
@@ -80,6 +82,7 @@ impl Document {
     }
 }
 
+#[must_use]
 pub fn detect_content_type(filename: &str) -> ContentType {
     match filename
         .rsplit('.')

@@ -8,7 +8,6 @@ use skill_sdk::manifest::{SkillManifest, SkillTier};
 use skill_sdk::registry::SkillRegistry;
 use skill_sdk::skill::Skill;
 use tool_runtime::registry::ToolRegistry;
-use tool_runtime::tool::Tool;
 use tool_runtime::tools::csv_engine::CsvEngine;
 use tool_runtime::tools::filesystem::{FilesystemReadTool, FilesystemWriteTool};
 use tool_runtime::tools::json_transform::JsonTransform;
@@ -64,6 +63,7 @@ pub struct ToolSkill {
 }
 
 impl ToolSkill {
+    #[must_use]
     pub fn new(
         id: &str,
         name: &str,
@@ -115,6 +115,7 @@ fn manifest(id: &str, name: &str, description: &str) -> SkillManifest {
 }
 
 /// Build the tool registry with all available tools.
+#[must_use]
 pub fn build_tool_registry(allowed_dirs: Vec<std::path::PathBuf>) -> ToolRegistry {
     let mut tools = ToolRegistry::new();
     tools.register(Box::new(CsvEngine::new()));
@@ -128,11 +129,13 @@ pub fn build_tool_registry(allowed_dirs: Vec<std::path::PathBuf>) -> ToolRegistr
 }
 
 /// Build the registry of concrete skills available to agents.
+#[must_use]
 pub fn build_registry() -> SkillRegistry {
     build_registry_with_tools(Arc::new(build_tool_registry(vec![])))
 }
 
 /// Build the skill registry backed by a specific tool registry.
+#[must_use]
 pub fn build_registry_with_tools(tools: Arc<ToolRegistry>) -> SkillRegistry {
     let mut registry = SkillRegistry::new();
 
@@ -149,7 +152,7 @@ pub fn build_registry_with_tools(tools: Arc<ToolRegistry>) -> SkillRegistry {
         "spreadsheet.analyze",
         "Spreadsheet Analyze",
         "Summarize spreadsheet columns",
-        tools.clone(),
+        tools,
         "spreadsheet.process",
         "summarize",
     )));
@@ -292,7 +295,10 @@ mod tests {
     #[test]
     fn test_validate_all_agent_skills() {
         let registry = build_registry();
-        let ids: Vec<String> = KNOWN_SKILLS.iter().map(|s| s.to_string()).collect();
+        let ids: Vec<String> = KNOWN_SKILLS
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect();
         assert!(registry.validate(&ids).is_ok());
     }
 
