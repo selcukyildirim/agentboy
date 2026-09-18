@@ -12,11 +12,21 @@ export function DecisionsPage() {
   const [selected, setSelected] = useState(null);
   const [context, setContext] = useState(null);
   const [recommendation, setRecommendation] = useState(null);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     api.decisionTypes().then(setTypes).catch(() => setTypes([]));
   }, []);
+
+  const loadHistory = async (typeId) => {
+    try {
+      const res = await api.decisionHistory(typeId, 10);
+      setHistory(res.records || []);
+    } catch {
+      setHistory([]);
+    }
+  };
 
   const choose = async (type) => {
     setSelected(type);
@@ -24,6 +34,7 @@ export function DecisionsPage() {
     setContext(null);
     try {
       setContext(await api.decisionContext(type.id));
+      await loadHistory(type.id);
     } catch (err) {
       toast.error(err.message);
     }
@@ -35,6 +46,7 @@ export function DecisionsPage() {
     try {
       const rec = await api.recommendation(selected.id, context.context);
       setRecommendation(rec.recommendation);
+      await loadHistory(selected.id);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -116,12 +128,30 @@ export function DecisionsPage() {
                 <h4>{t("decisions.recommendation")}</h4>
                 <div className="resultItem">
                   <strong>
-                    {recommendation.action}{" "}
-                    <Badge tone={confidenceTone(recommendation.confidence)}>
-                      {recommendation.confidence}
+                    {recommendation.recommendation}{" "}
+                    <Badge tone={confidenceTone(recommendation.confidence?.level)}>
+                      {recommendation.confidence?.level}
                     </Badge>
                   </strong>
-                  <p>{recommendation.reasoning}</p>
+                  {recommendation.missing_info?.length > 0 && (
+                    <p>
+                      {t("decisions.missingFacts")}: {recommendation.missing_info.join(", ")}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {history.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <h4>{t("common.details")}</h4>
+                <div className="documentList">
+                  {history.map((h) => (
+                    <div className="documentItem" key={h.id}>
+                      <span>{(h.recommendation?.recommendation || "").slice(0, 80)}</span>
+                      <span>{h.created_at?.slice(0, 19)}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

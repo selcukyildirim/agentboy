@@ -37,3 +37,50 @@ pub async fn init_pool() -> AppResult<SqlitePool> {
     tracing::info!(path = %path.display(), "Local database ready");
     Ok(pool)
 }
+
+/// Create tables owned by the library subsystems (decision memory, workflow
+/// history, cache) on the shared pool.
+pub async fn init_schema(pool: &SqlitePool) -> AppResult<()> {
+    let statements = [
+        "CREATE TABLE IF NOT EXISTS decision_memory (
+            id TEXT PRIMARY KEY,
+            decision_type TEXT NOT NULL,
+            context_json TEXT NOT NULL,
+            recommendation_json TEXT NOT NULL,
+            outcome_json TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )",
+        "CREATE TABLE IF NOT EXISTS workflow_executions (
+            id TEXT PRIMARY KEY,
+            workflow_id TEXT NOT NULL,
+            workflow_version INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            data_json TEXT NOT NULL,
+            started_at TEXT NOT NULL,
+            completed_at TEXT
+        )",
+        "CREATE TABLE IF NOT EXISTS workflow_versions (
+            workflow_id TEXT NOT NULL,
+            version INTEGER NOT NULL,
+            data_json TEXT NOT NULL,
+            changelog TEXT,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (workflow_id, version)
+        )",
+        "CREATE TABLE IF NOT EXISTS cache_entries (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            entry_type TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            expires_at TEXT
+        )",
+    ];
+
+    for stmt in statements {
+        sqlx::query(stmt)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::Database(format!("schema init: {e}")))?;
+    }
+    Ok(())
+}

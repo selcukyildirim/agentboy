@@ -77,6 +77,8 @@ export const api = {
     call("get_decision_context", { decisionTypeId }),
   recommendation: (decisionTypeId, context) =>
     call("get_recommendation", { decisionTypeId, context }),
+  decisionHistory: (decisionTypeId, limit) =>
+    call("list_decision_history", { decisionTypeId, limit }),
 
   // audit
   audit: (limit) => call("list_audit", { limit }),

@@ -223,5 +223,25 @@ pub async fn execute_workflow(
         .await
         .map_err(|e| e.to_string())?;
 
+    // Persist run to local workflow history (workflow-engine).
+    let history = workflow_engine::WorkflowHistory::new(state.pool.clone());
+    if let Err(e) = history.save_execution(&execution).await {
+        tracing::warn!(error = %e, "Failed to save workflow execution");
+    }
+
     serde_json::to_value(&execution).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_workflow_runs(
+    state: tauri::State<'_, AppState>,
+    workflow_id: String,
+    limit: Option<u32>,
+) -> Result<serde_json::Value, String> {
+    let history = workflow_engine::WorkflowHistory::new(state.pool.clone());
+    let runs = history
+        .list_by_workflow(&workflow_id, limit.unwrap_or(20))
+        .await
+        .map_err(|e| e.to_string())?;
+    serde_json::to_value(runs).map_err(|e| e.to_string())
 }

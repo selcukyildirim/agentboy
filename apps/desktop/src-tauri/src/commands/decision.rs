@@ -1,7 +1,10 @@
 use decision_core::context::{DecisionContextBuilder, MissingInfoDetector};
 use decision_core::decision_type::DecisionType;
+use decision_core::memory::DecisionMemory;
 use decision_core::recommendation::{Confidence, ConfidenceFactor, Recommendation};
 use serde::Serialize;
+
+use crate::app_state::AppState;
 
 #[derive(Debug, Serialize)]
 pub struct DecisionTypeInfo {
@@ -117,7 +120,8 @@ pub fn get_decision_context(decision_type_id: String) -> Result<serde_json::Valu
 }
 
 #[tauri::command]
-pub fn get_recommendation(
+pub async fn get_recommendation(
+    state: tauri::State<'_, AppState>,
     decision_type_id: String,
     context: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
@@ -166,6 +170,56 @@ pub fn get_recommendation(
         created_at: chrono::Utc::now().to_rfc3339(),
     };
 
+    // Persist to local decision memory (decision-core).
+    let memory = DecisionMemory::new(state.pool.clone());
+    if let Err(e) = memory.save(&ctx, &rec).await {
+        tracing::warn!(error = %e, "Failed to save decision memory");
+    }
+
     serde_json::to_value(serde_json::json!({ "recommendation": rec }))
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_decision_history(
+    state: tauri::State<'_, AppState>,
+    decision_type_id: Option<String>,
+    limit: Option<usize>,
+) -> Result<serde_json::Value, String> {
+    let limit = limit.unwrap_or(50) as i64;
+
+    let rows: Vec<(String, String, String, String)> = match decision_type_id {
+        Some(id) => sqlx::query_as(
+            "SELECT id, decision_type, recommendation_json, created_at
+             FROM decision_memory WHERE decision_type = ?
+             ORDER BY created_at DESC LIMIT ?",
+        )
+        .bind(id)
+        .bind(limit)
+        .fetch_all(&state.pool)
+        .await
+        .map_err(|e| e.to_string())?,
+        None => sqlx::query_as(
+            "SELECT id, decision_type, recommendation_json, created_at
+             FROM decision_memory ORDER BY created_at DESC LIMIT ?",
+        )
+        .bind(limit)
+        .fetch_all(&state.pool)
+        .await
+        .map_err(|e| e.to_string())?,
+    };
+
+    let records: Vec<serde_json::Value> = rows
+        .into_iter()
+        .map(|(id, dtype, rec, created_at)| {
+            serde_json::json!({
+                "id": id,
+                "decision_type": dtype,
+                "recommendation": serde_json::from_str::<serde_json::Value>(&rec).unwrap_or(serde_json::Value::Null),
+                "created_at": created_at,
+            })
+        })
+        .collect();
+
+    Ok(serde_json::json!({ "records": records }))
 }

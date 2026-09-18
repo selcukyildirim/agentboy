@@ -55,6 +55,8 @@ pub fn run() {
             commands::get_execution_stats,
             commands::list_audit,
             commands::list_audit_for_agent,
+            commands::list_decision_history,
+            commands::list_workflow_runs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

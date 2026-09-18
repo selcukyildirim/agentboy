@@ -24,6 +24,10 @@ impl AppState {
             .await
             .expect("failed to initialize local database");
 
+        crate::db::init_schema(&pool)
+            .await
+            .expect("failed to initialize subsystem schema");
+
         crate::commands::executions::init(&pool)
             .await
             .expect("failed to initialize executions table");
