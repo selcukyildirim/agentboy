@@ -1,0 +1,7 @@
+supplier,product,unit_price,lead_time_days,quality_score,delivery_rate,min_order
+Acme Corp,Widget A,25.50,7,95.2,98.5,100
+Beta LLC,Widget A,24.75,10,92.1,96.0,50
+Gamma Inc,Widget A,26.00,5,97.8,99.2,200
+Acme Corp,Widget B,42.00,7,94.5,97.8,50
+Beta LLC,Widget B,40.50,12,91.3,95.5,100
+Delta Co,Widget B,43.25,3,98.5,99.5,250

@@ -5,11 +5,15 @@ edition.workspace = true
 
 [dependencies]
 agent-common.workspace = true
+audit-core.workspace = true
+egress-guard.workspace = true
 tokio.workspace = true
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
+chrono.workspace = true
+uuid.workspace = true
 
 [lints]
 workspace = true

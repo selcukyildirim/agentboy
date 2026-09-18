@@ -31,6 +31,9 @@ impl Agent for SupplierComparisonAgent {
                 max_steps: 30,
                 timeout_seconds: 120,
             },
+            rag_enabled: false,
+            output_schema: None,
+            max_cost_usd: None,
         }
     }
 

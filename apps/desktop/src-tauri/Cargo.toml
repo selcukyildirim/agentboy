@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
+async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
@@ -15,6 +16,7 @@ chrono.workspace = true
 uuid.workspace = true
 agent-common.workspace = true
 agent-runtime.workspace = true
+agents.workspace = true
 llm-gateway.workspace = true
 provider-openai.workspace = true
 provider-anthropic.workspace = true
@@ -23,6 +25,7 @@ provider-openai-compatible.workspace = true
 provider-ollama.workspace = true
 cache-core.workspace = true
 egress-guard.workspace = true
+reqwest.workspace = true
 secure-store.workspace = true
 
 [build-dependencies]

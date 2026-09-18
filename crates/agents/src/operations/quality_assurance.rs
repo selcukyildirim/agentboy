@@ -10,12 +10,16 @@ impl QualityAssuranceAgent { pub fn new() -> Self { Self } }
 #[async_trait::async_trait]
 impl Agent for QualityAssuranceAgent {
     fn manifest(&self) -> AgentManifest {
-        AgentManifest { id: "operations.quality-assurance".to_string(), version: "2.0.0".to_string(), name: "Quality Assurance".to_string(), department: "Operations".to_string(), description: "Track defect rates, analyze quality trends, and recommend process improvements".to_string(), tier: AgentTier::Free, skills: vec!["spreadsheet.parse".to_string(), "spreadsheet.analyze".to_string(), "llm.analysis".to_string()], permissions: AgentPermissions { filesystem_read: true, filesystem_write: false, network_llm: true }, execution: ExecutionLimits { max_steps: 30, timeout_seconds: 120 } }
+        AgentManifest { id: "operations.quality-assurance".to_string(), version: "2.0.0".to_string(), name: "Quality Assurance".to_string(), department: "Operations".to_string(), description: "Track defect rates, analyze quality trends, and recommend process improvements".to_string(), tier: AgentTier::Free, skills: vec!["spreadsheet.parse".to_string(), "spreadsheet.analyze".to_string(), "llm.analysis".to_string()], permissions: AgentPermissions { filesystem_read: true, filesystem_write: false, network_llm: true }, execution: ExecutionLimits { max_steps: 30, timeout_seconds: 120 }, rag_enabled: false, output_schema: None, max_cost_usd: None }
     }
     fn supports_context(&self) -> bool { true }
     async fn execute_with_context(&self, input: serde_json::Value, ctx: &dyn AgentContext) -> AppResult<serde_json::Value> {
         let csv = input["defects"].as_str().ok_or_else(|| AppError::Validation("Missing 'defects' CSV".to_string()))?;
         let defects = csv_util::parse_csv_to_maps(csv)?;
+
+        if csv_util::all_empty(&defects) {
+            return Ok(csv_util::empty_response("operations.quality-assurance", &["defects"]));
+        }
 
         let total_inspected = input["total_inspected"].as_f64().unwrap_or(defects.len() as f64);
         let total_defects: f64 = defects.iter().map(|d| csv_util::record_get_f64(d, "count")).sum();

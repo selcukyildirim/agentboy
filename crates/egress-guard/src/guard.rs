@@ -81,6 +81,10 @@ impl EgressGuard {
         &self.audit_log
     }
 
+    pub fn classifier(&self) -> &DataClassifier {
+        &self.classifier
+    }
+
     pub fn build_manifest(
         &self,
         provider: &str,

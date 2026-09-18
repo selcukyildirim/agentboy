@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::sync::{Mutex, OnceLock};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CacheStats {
@@ -11,40 +12,32 @@ pub struct CacheStats {
     pub total_hits: u64,
 }
 
-static mut CACHE_STATS: Option<CacheStats> = None;
-
-fn get_stats() -> &'static mut CacheStats {
-    unsafe {
-        if CACHE_STATS.is_none() {
-            CACHE_STATS = Some(CacheStats {
-                l1_entries: 0,
-                l1_size_bytes: 0,
-                l2_entries: 0,
-                l2_size_bytes: 0,
-                hit_rate: 0.0,
-                total_requests: 0,
-                total_hits: 0,
-            });
+impl Default for CacheStats {
+    fn default() -> Self {
+        Self {
+            l1_entries: 0,
+            l1_size_bytes: 0,
+            l2_entries: 0,
+            l2_size_bytes: 0,
+            hit_rate: 0.0,
+            total_requests: 0,
+            total_hits: 0,
         }
-        CACHE_STATS.as_mut().unwrap()
     }
+}
+
+fn get_stats() -> &'static Mutex<CacheStats> {
+    static CACHE: OnceLock<Mutex<CacheStats>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(CacheStats::default()))
 }
 
 #[tauri::command]
 pub fn get_cache_stats() -> CacheStats {
-    get_stats().clone()
+    get_stats().lock().unwrap().clone()
 }
 
 #[tauri::command]
 pub fn clear_cache() -> Result<String, String> {
-    let stats = get_stats();
-    stats.l1_entries = 0;
-    stats.l1_size_bytes = 0;
-    stats.l2_entries = 0;
-    stats.l2_size_bytes = 0;
-    stats.hit_rate = 0.0;
-    stats.total_requests = 0;
-    stats.total_hits = 0;
-
+    *get_stats().lock().unwrap() = CacheStats::default();
     Ok("Cache cleared successfully".to_string())
 }

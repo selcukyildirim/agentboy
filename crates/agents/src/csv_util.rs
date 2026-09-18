@@ -24,6 +24,89 @@ pub fn parse_csv_to_maps(csv: &str) -> AppResult<Vec<HashMap<String, String>>> {
     Ok(records)
 }
 
+pub fn sanitize_csv_value(s: &str) -> String {
+    let trimmed = s.trim();
+    if let Some(first) = trimmed.chars().next() {
+        if matches!(first, '=' | '+' | '-' | '@' | '\t' | '\r' | '\n') {
+            return format!("'{}", trimmed);
+        }
+    }
+    s.to_string()
+}
+
+pub fn sanitize_csv_content(csv: &str) -> String {
+    csv.lines()
+        .map(|line| {
+            line.split(',')
+                .map(|field| sanitize_csv_value(field))
+                .collect::<Vec<_>>()
+                .join(",")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+pub fn parse_f64_locale(s: &str) -> Option<f64> {
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let has_dot = trimmed.contains('.');
+    let has_comma = trimmed.contains(',');
+
+    match (has_dot, has_comma) {
+        (true, true) => {
+            let last_separator = trimmed.rfind(|c| c == '.' || c == ',');
+            if let Some(pos) = last_separator {
+                let integer_part: String = trimmed[..pos]
+                    .chars()
+                    .filter(|c| c.is_ascii_digit())
+                    .collect();
+                let decimal_part: String = trimmed[pos + 1..]
+                    .chars()
+                    .filter(|c| c.is_ascii_digit())
+                    .collect();
+                let combined = format!("{}.{}", integer_part, decimal_part);
+                combined.parse::<f64>().ok()
+            } else {
+                None
+            }
+        }
+        (true, false) => {
+            let clean: String = trimmed
+                .chars()
+                .filter(|c| c.is_ascii_digit() || *c == '.')
+                .collect();
+            clean.parse::<f64>().ok()
+        }
+        (false, true) => {
+            let clean: String = trimmed
+                .chars()
+                .filter(|c| c.is_ascii_digit() || *c == ',')
+                .collect();
+            if let Some(pos) = clean.rfind(',') {
+                let integer_part: String = clean[..pos]
+                    .chars()
+                    .filter(|c| c.is_ascii_digit())
+                    .collect();
+                let decimal_part: String = clean[pos + 1..]
+                    .chars()
+                    .filter(|c| c.is_ascii_digit())
+                    .collect();
+                let combined = format!("{}.{}", integer_part, decimal_part);
+                combined.parse::<f64>().ok()
+            } else {
+                clean.parse::<f64>().ok()
+            }
+        }
+        (false, false) => {
+            let clean: String = trimmed.chars().filter(|c| c.is_ascii_digit() || *c == '-').collect();
+            clean.parse::<f64>().ok()
+        }
+    }
+}
+
 pub fn parse_csv_column_f64(
     csv: &str,
     category_col: &str,
@@ -35,7 +118,7 @@ pub fn parse_csv_column_f64(
         let category = record.get(category_col).cloned().unwrap_or_default();
         let amount = record
             .get(amount_col)
-            .and_then(|v| v.parse::<f64>().ok())
+            .and_then(|v| parse_f64_locale(v))
             .unwrap_or(0.0);
         *result.entry(category).or_insert(0.0) += amount;
     }
@@ -58,7 +141,7 @@ pub fn records_to_json(records: &[HashMap<String, String>]) -> Vec<serde_json::V
 pub fn record_get_f64(record: &HashMap<String, String>, key: &str) -> f64 {
     record
         .get(key)
-        .and_then(|v| v.parse::<f64>().ok())
+        .and_then(|v| parse_f64_locale(v))
         .unwrap_or(0.0)
 }
 
@@ -89,12 +172,30 @@ pub fn detect_duplicates(
     records: &[HashMap<String, String>],
     keys: &[&str],
 ) -> Vec<(usize, usize)> {
+    use std::collections::HashMap as StdHashMap;
+
+    let mut seen: StdHashMap<String, Vec<usize>> = StdHashMap::new();
+    for (i, rec) in records.iter().enumerate() {
+        let mut key_parts = Vec::new();
+        for k in keys {
+            let val = record_get_str(rec, k);
+            if val.is_empty() {
+                key_parts.clear();
+                break;
+            }
+            key_parts.push(val);
+        }
+        if !key_parts.is_empty() {
+            let signature = key_parts.join("\x00");
+            seen.entry(signature).or_default().push(i);
+        }
+    }
+
     let mut duplicates = Vec::new();
-    for (i, r1) in records.iter().enumerate() {
-        for (j, r2) in records.iter().enumerate().skip(i + 1) {
-            let all_match = keys.iter().all(|k| record_get_str(r1, k) == record_get_str(r2, k));
-            if all_match && keys.iter().all(|k| !record_get_str(r1, k).is_empty()) {
-                duplicates.push((i, j));
+    for indices in seen.values() {
+        if indices.len() > 1 {
+            for w in indices.windows(2) {
+                duplicates.push((w[0], w[1]));
             }
         }
     }
@@ -108,6 +209,19 @@ pub fn standard_deviation(values: &[f64]) -> f64 {
     let mean = values.iter().sum::<f64>() / values.len() as f64;
     let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
     variance.sqrt()
+}
+
+pub fn all_empty(records: &[HashMap<String, String>]) -> bool {
+    records.is_empty()
+}
+
+pub fn empty_response(agent: &str, inputs: &[&str]) -> serde_json::Value {
+    serde_json::json!({
+        "status": "no_data",
+        "agent": agent,
+        "message": format!("{}: no data rows found in input(s): {}", agent, inputs.join(", ")),
+        "record_count": 0,
+    })
 }
 
 pub fn percentile(values: &[f64], p: f64) -> f64 {
@@ -179,5 +293,91 @@ mod tests {
         assert_eq!(percentile(&values, 50.0), 3.0);
         assert_eq!(percentile(&values, 0.0), 1.0);
         assert_eq!(percentile(&values, 100.0), 5.0);
+    }
+
+    // M5: Locale-aware parsing tests
+    #[test]
+    fn test_parse_f64_locale_tr() {
+        assert_eq!(parse_f64_locale("1.234,56"), Some(1234.56));
+        assert_eq!(parse_f64_locale("1.234.567,89"), Some(1234567.89));
+        assert_eq!(parse_f64_locale("0,50"), Some(0.50));
+    }
+
+    #[test]
+    fn test_parse_f64_locale_en() {
+        assert_eq!(parse_f64_locale("1,234.56"), Some(1234.56));
+        assert_eq!(parse_f64_locale("1,234,567.89"), Some(1234567.89));
+    }
+
+    #[test]
+    fn test_parse_f64_locale_plain() {
+        assert_eq!(parse_f64_locale("1234.56"), Some(1234.56));
+        assert_eq!(parse_f64_locale("1234"), Some(1234.0));
+        assert_eq!(parse_f64_locale("  42.0  "), Some(42.0));
+    }
+
+    #[test]
+    fn test_parse_f64_locale_empty() {
+        assert_eq!(parse_f64_locale(""), None);
+        assert_eq!(parse_f64_locale("N/A"), None);
+        assert_eq!(parse_f64_locale("--"), None);
+    }
+
+    #[test]
+    fn test_record_get_f64_locale() {
+        let mut record = HashMap::new();
+        record.insert("amount".to_string(), "1.234,56".to_string());
+        assert_eq!(record_get_f64(&record, "amount"), 1234.56);
+    }
+
+    #[test]
+    fn test_csv_with_locale_numbers() {
+        let csv = "kategori,tutar\nYiyecek,1234.56\nUlaşım,500.00\nYiyecek,250.75\n";
+        let result = parse_csv_column_f64(csv, "kategori", "tutar").unwrap();
+        assert!((result.get("Yiyecek").unwrap() - 1485.31).abs() < 0.01);
+        assert_eq!(result.get("Ulaşım").unwrap(), &500.0);
+    }
+
+    // M7: CSV injection tests
+    #[test]
+    fn test_sanitize_csv_value_injection() {
+        assert_eq!(sanitize_csv_value("=SUM(A1:A10)"), "'=SUM(A1:A10)");
+        assert_eq!(sanitize_csv_value("+cmd|'/C calc'!A0"), "'+cmd|'/C calc'!A0");
+        assert_eq!(sanitize_csv_value("-1+2"), "'-1+2");
+        assert_eq!(sanitize_csv_value("@SUM(A1)"), "'@SUM(A1)");
+        assert_eq!(sanitize_csv_value("\t=cmd"), "'=cmd");
+    }
+
+    #[test]
+    fn test_sanitize_csv_value_safe() {
+        assert_eq!(sanitize_csv_value("hello"), "hello");
+        assert_eq!(sanitize_csv_value("123"), "123");
+        assert_eq!(sanitize_csv_value("2024-01-01"), "2024-01-01");
+    }
+
+    #[test]
+    fn test_sanitize_csv_content() {
+        let csv = "name,formula\nAcme,=SUM(A1:A10)\nBeta,normal\n";
+        let sanitized = sanitize_csv_content(csv);
+        assert!(sanitized.contains("'=SUM(A1:A10)"));
+        assert!(sanitized.contains("normal"));
+    }
+
+    #[test]
+    fn test_all_empty() {
+        let records: Vec<HashMap<String, String>> = Vec::new();
+        assert!(all_empty(&records));
+
+        let non_empty = parse_csv_to_maps("a,b\n1,2\n").unwrap();
+        assert!(!all_empty(&non_empty));
+    }
+
+    #[test]
+    fn test_empty_response() {
+        let resp = empty_response("test.agent", &["input_a", "input_b"]);
+        assert_eq!(resp["status"], "no_data");
+        assert_eq!(resp["agent"], "test.agent");
+        assert_eq!(resp["record_count"], 0);
+        assert!(resp["message"].as_str().unwrap().contains("input_a"));
     }
 }

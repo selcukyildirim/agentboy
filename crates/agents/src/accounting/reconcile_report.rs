@@ -33,6 +33,9 @@ impl Agent for ReconcileReportAgent {
                 max_steps: 40,
                 timeout_seconds: 180,
             },
+            rag_enabled: false,
+            output_schema: None,
+            max_cost_usd: None,
         }
     }
 

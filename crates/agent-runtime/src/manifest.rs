@@ -11,6 +11,12 @@ pub struct AgentManifest {
     pub skills: Vec<String>,
     pub permissions: AgentPermissions,
     pub execution: ExecutionLimits,
+    #[serde(default)]
+    pub rag_enabled: bool,
+    #[serde(default)]
+    pub output_schema: Option<serde_json::Value>,
+    #[serde(default)]
+    pub max_cost_usd: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

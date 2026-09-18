@@ -1,0 +1,9 @@
+opportunity_id,account,stage,amount,probability,close_date,owner
+OPP-001,Acme Corp,Proposal,50000,60,2024-03-15,Alice
+OPP-002,Beta LLC,Negotiation,75000,80,2024-02-28,Bob
+OPP-003,Gamma Inc,Discovery,25000,30,2024-04-30,Carol
+OPP-004,Delta Co,Closed Won,40000,100,2024-01-31,Alice
+OPP-005,Epsilon SA,Closed Lost,30000,0,2024-01-15,David
+OPP-006,Zeta Ltd,Proposal,60000,55,2024-03-20,Bob
+OPP-007,Eta Corp,Negotiation,90000,75,2024-03-10,Carol
+OPP-008,Theta Inc,Discovery,15000,20,2024-05-15,David

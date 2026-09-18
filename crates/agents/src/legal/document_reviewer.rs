@@ -10,7 +10,7 @@ impl DocumentReviewerAgent { pub fn new() -> Self { Self } }
 #[async_trait::async_trait]
 impl Agent for DocumentReviewerAgent {
     fn manifest(&self) -> AgentManifest {
-        AgentManifest { id: "legal.document-reviewer".to_string(), version: "2.0.0".to_string(), name: "Document Reviewer".to_string(), department: "Legal".to_string(), description: "Review legal documents for completeness, consistency, and risk indicators".to_string(), tier: AgentTier::Free, skills: vec!["document.analyze".to_string(), "document.validate".to_string(), "llm.analysis".to_string()], permissions: AgentPermissions { filesystem_read: true, filesystem_write: false, network_llm: true }, execution: ExecutionLimits { max_steps: 30, timeout_seconds: 120 } }
+        AgentManifest { id: "legal.document-reviewer".to_string(), version: "2.0.0".to_string(), name: "Document Reviewer".to_string(), department: "Legal".to_string(), description: "Review legal documents for completeness, consistency, and risk indicators".to_string(), tier: AgentTier::Free, skills: vec!["document.analyze".to_string(), "document.validate".to_string(), "llm.analysis".to_string()], permissions: AgentPermissions { filesystem_read: true, filesystem_write: false, network_llm: true }, execution: ExecutionLimits { max_steps: 30, timeout_seconds: 120 }, rag_enabled: false, output_schema: None, max_cost_usd: None }
     }
     fn supports_context(&self) -> bool { true }
     async fn execute_with_context(&self, input: serde_json::Value, ctx: &dyn AgentContext) -> AppResult<serde_json::Value> {

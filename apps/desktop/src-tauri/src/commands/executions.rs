@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::sync::{Mutex, OnceLock};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Execution {
@@ -12,7 +13,7 @@ pub struct Execution {
     pub duration_ms: Option<u64>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExecutionStep {
     pub step_number: u32,
     pub step_type: String,
@@ -21,26 +22,27 @@ pub struct ExecutionStep {
     pub duration_ms: u64,
 }
 
-static mut EXECUTIONS: Option<Vec<Execution>> = None;
+fn get_executions() -> &'static Mutex<Vec<Execution>> {
+    static EXECUTIONS: OnceLock<Mutex<Vec<Execution>>> = OnceLock::new();
+    EXECUTIONS.get_or_init(|| Mutex::new(Vec::new()))
+}
 
-fn get_executions() -> &'static mut Vec<Execution> {
-    unsafe {
-        if EXECUTIONS.is_none() {
-            EXECUTIONS = Some(Vec::new());
-        }
-        EXECUTIONS.as_mut().unwrap()
-    }
+fn get_steps() -> &'static Mutex<std::collections::HashMap<String, Vec<ExecutionStep>>> {
+    static STEPS: OnceLock<Mutex<std::collections::HashMap<String, Vec<ExecutionStep>>>> =
+        OnceLock::new();
+    STEPS.get_or_init(|| Mutex::new(std::collections::HashMap::new()))
 }
 
 #[tauri::command]
 pub fn list_executions() -> Vec<Execution> {
-    get_executions().clone()
+    get_executions().lock().unwrap().clone()
 }
 
 #[tauri::command]
 pub fn get_execution(execution_id: String) -> Result<Execution, String> {
-    let execs = get_executions();
-    execs.iter()
+    let execs = get_executions().lock().unwrap();
+    execs
+        .iter()
         .find(|e| e.id == execution_id)
         .cloned()
         .ok_or_else(|| format!("Execution {} not found", execution_id))
@@ -49,35 +51,21 @@ pub fn get_execution(execution_id: String) -> Result<Execution, String> {
 #[tauri::command]
 pub fn save_execution(execution: Execution) -> Result<Execution, String> {
     let saved = execution.clone();
-    get_executions().push(saved.clone());
+    get_executions().lock().unwrap().push(saved.clone());
     Ok(saved)
+}
+
+pub fn save_step(execution_id: &str, step: ExecutionStep) {
+    get_steps()
+        .lock()
+        .unwrap()
+        .entry(execution_id.to_string())
+        .or_default()
+        .push(step);
 }
 
 #[tauri::command]
 pub fn get_execution_steps(execution_id: String) -> Result<Vec<ExecutionStep>, String> {
-    let _ = execution_id;
-
-    Ok(vec![
-        ExecutionStep {
-            step_number: 1,
-            step_type: "Planning".to_string(),
-            description: "Analyze input data".to_string(),
-            status: "completed".to_string(),
-            duration_ms: 150,
-        },
-        ExecutionStep {
-            step_number: 2,
-            step_type: "ToolCall".to_string(),
-            description: "Execute analysis".to_string(),
-            status: "completed".to_string(),
-            duration_ms: 800,
-        },
-        ExecutionStep {
-            step_number: 3,
-            step_type: "Validation".to_string(),
-            description: "Validate results".to_string(),
-            status: "completed".to_string(),
-            duration_ms: 100,
-        },
-    ])
+    let steps = get_steps().lock().unwrap();
+    Ok(steps.get(&execution_id).cloned().unwrap_or_default())
 }

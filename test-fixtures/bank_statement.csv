@@ -1,0 +1,11 @@
+date,amount,reference,description,category
+2024-01-01,1500.00,BNK-001,Office Supplies,Office
+2024-01-02,3200.50,BNK-002,Software License,IT
+2024-01-03,850.00,BNK-003,Client Dinner,Entertainment
+2024-01-04,12500.00,BNK-004,Equipment Purchase,Capital
+2024-01-05,425.75,BNK-005,Travel Expense,Travel
+2024-01-06,980.00,BNK-006,Marketing Materials,Marketing
+2024-01-07,2100.00,BNK-007,Consulting Fee,Professional Services
+2024-01-08,175.50,BNK-008,Office Snacks,Office
+2024-01-09,4500.00,BNK-009,Cloud Hosting,IT
+2024-01-10,320.25,BNK-010,Postage & Shipping,Office

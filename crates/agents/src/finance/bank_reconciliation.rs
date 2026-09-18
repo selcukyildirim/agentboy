@@ -37,6 +37,9 @@ impl Agent for BankReconciliationAgent {
                 max_steps: 50,
                 timeout_seconds: 300,
             },
+            rag_enabled: false,
+            output_schema: None,
+            max_cost_usd: None,
         }
     }
 

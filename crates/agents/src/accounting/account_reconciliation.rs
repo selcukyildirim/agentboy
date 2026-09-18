@@ -33,6 +33,9 @@ impl Agent for AccountReconciliationAgent {
                 max_steps: 40,
                 timeout_seconds: 180,
             },
+            rag_enabled: false,
+            output_schema: None,
+            max_cost_usd: None,
         }
     }
 
@@ -54,6 +57,10 @@ impl Agent for AccountReconciliationAgent {
 
         let gl_entries = csv_util::parse_csv_to_maps(gl_csv)?;
         let sl_entries = csv_util::parse_csv_to_maps(sl_csv)?;
+
+        if csv_util::all_empty(&gl_entries) && csv_util::all_empty(&sl_entries) {
+            return Ok(csv_util::empty_response("account.reconciliation", &["gl_entries", "subledger"]));
+        }
 
         let gl_total: f64 = gl_entries.iter().map(|r| csv_util::record_get_f64(r, "amount")).sum();
         let sl_total: f64 = sl_entries.iter().map(|r| csv_util::record_get_f64(r, "amount")).sum();

@@ -1,0 +1,7 @@
+po_number,supplier,item,quantity,unit_price,order_date,expected_delivery,status
+PO-001,Acme Corp,Widget A,100,25.50,2024-01-10,2024-01-17,received
+PO-002,Beta LLC,Widget B,50,40.50,2024-01-12,2024-01-24,pending
+PO-003,Gamma Inc,Widget A,200,26.00,2024-01-15,2024-01-20,received
+PO-004,Delta Co,Widget C,75,33.75,2024-01-18,2024-01-21,pending
+PO-005,Acme Corp,Widget B,150,42.00,2024-01-20,2024-01-27,overdue
+PO-006,Gamma Inc,Widget C,300,32.50,2024-01-22,2024-01-27,received

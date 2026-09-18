@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HealthReport {
@@ -22,14 +23,58 @@ pub struct MetricsReport {
     pub gauges: HashMap<String, f64>,
 }
 
-static mut START_TIME: Option<chrono::DateTime<chrono::Utc>> = None;
-
 fn get_start_time() -> chrono::DateTime<chrono::Utc> {
-    unsafe {
-        if START_TIME.is_none() {
-            START_TIME = Some(chrono::Utc::now());
-        }
-        START_TIME.unwrap()
+    static START_TIME: OnceLock<chrono::DateTime<chrono::Utc>> = OnceLock::new();
+    *START_TIME.get_or_init(chrono::Utc::now)
+}
+
+#[derive(Debug, Clone)]
+struct MetricsState {
+    agent_executions: u64,
+    documents_indexed: u64,
+    cache_hits: u64,
+    cache_misses: u64,
+    active_executions: f64,
+}
+
+fn get_metrics_state() -> &'static Mutex<MetricsState> {
+    static METRICS: OnceLock<Mutex<MetricsState>> = OnceLock::new();
+    METRICS.get_or_init(|| Mutex::new(MetricsState {
+        agent_executions: 0,
+        documents_indexed: 0,
+        cache_hits: 0,
+        cache_misses: 0,
+        active_executions: 0.0,
+    }))
+}
+
+pub fn increment_agent_executions() {
+    if let Ok(mut m) = get_metrics_state().lock() {
+        m.agent_executions += 1;
+    }
+}
+
+pub fn increment_documents_indexed() {
+    if let Ok(mut m) = get_metrics_state().lock() {
+        m.documents_indexed += 1;
+    }
+}
+
+pub fn increment_cache_hits() {
+    if let Ok(mut m) = get_metrics_state().lock() {
+        m.cache_hits += 1;
+    }
+}
+
+pub fn increment_cache_misses() {
+    if let Ok(mut m) = get_metrics_state().lock() {
+        m.cache_misses += 1;
+    }
+}
+
+pub fn set_active_executions(count: f64) {
+    if let Ok(mut m) = get_metrics_state().lock() {
+        m.active_executions = count;
     }
 }
 
@@ -67,15 +112,24 @@ pub fn get_health() -> HealthReport {
 
 #[tauri::command]
 pub fn get_metrics() -> MetricsReport {
+    let state = get_metrics_state().lock().unwrap().clone();
+
     let mut counters = HashMap::new();
-    counters.insert("agent_executions".to_string(), 0);
-    counters.insert("documents_indexed".to_string(), 0);
-    counters.insert("cache_hits".to_string(), 0);
-    counters.insert("cache_misses".to_string(), 0);
+    counters.insert("agent_executions".to_string(), state.agent_executions);
+    counters.insert("documents_indexed".to_string(), state.documents_indexed);
+    counters.insert("cache_hits".to_string(), state.cache_hits);
+    counters.insert("cache_misses".to_string(), state.cache_misses);
+
+    let total = state.cache_hits + state.cache_misses;
+    let hit_rate = if total > 0 {
+        state.cache_hits as f64 / total as f64
+    } else {
+        0.0
+    };
 
     let mut gauges = HashMap::new();
-    gauges.insert("cache_hit_rate".to_string(), 0.0);
-    gauges.insert("active_executions".to_string(), 0.0);
+    gauges.insert("cache_hit_rate".to_string(), hit_rate);
+    gauges.insert("active_executions".to_string(), state.active_executions);
 
     MetricsReport {
         counters,

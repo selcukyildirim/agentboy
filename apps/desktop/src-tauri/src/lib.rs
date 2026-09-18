@@ -1,4 +1,8 @@
+mod app_state;
 mod commands;
+mod provider_bridge;
+
+pub use app_state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -6,8 +10,11 @@ pub fn run() {
         .with_env_filter("info")
         .init();
 
+    let app_state = AppState::new();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             commands::greet,
             commands::get_app_version,

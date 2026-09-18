@@ -1,0 +1,6 @@
+invoice_id,vendor,date,amount,currency,category,due_date,paid
+INV-001,Acme Corp,2024-01-15,5000.00,USD,Software,2024-02-15,true
+INV-002,Beta LLC,2024-01-20,1200.00,USD,Consulting,2024-02-20,true
+INV-003,Gamma Inc,2024-02-01,8500.00,USD,Hardware,2024-03-01,false
+INV-004,Delta Co,2024-02-10,3200.00,USD,Services,2024-03-10,false
+INV-005,Epsilon SA,2024-02-15,950.00,EUR,Training,2024-03-15,true

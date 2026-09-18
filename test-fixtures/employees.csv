@@ -1,0 +1,11 @@
+employee_id,name,department,role,hire_date,salary,performance_score,tenure_years,attrition_risk
+EMP-001,Alice Chen,Engineering,Senior Dev,2020-03-15,120000,4.2,4.0,Low
+EMP-002,Bob Smith,Engineering,Junior Dev,2022-06-01,85000,3.8,2.0,Medium
+EMP-003,Carol White,Marketing,Manager,2019-01-10,95000,4.5,5.5,Low
+EMP-004,David Lee,Sales,Account Exec,2023-02-20,75000,3.2,1.5,High
+EMP-005,Eva Martinez,HR,Recruiter,2021-08-15,70000,4.0,3.0,Low
+EMP-006,Frank Kim,Engineering,Tech Lead,2018-04-01,140000,4.8,6.5,Low
+EMP-007,Grace Park,Finance,Analyst,2022-09-01,80000,3.5,2.0,Medium
+EMP-008,Henry Brown,Sales,SDR,2023-11-15,55000,2.8,0.5,High
+EMP-009,Iris Johnson,Marketing,Specialist,2021-03-01,72000,4.1,3.5,Low
+EMP-0010,Jack Wilson,Engineering,DevOps,2020-11-01,110000,4.3,4.0,Low
