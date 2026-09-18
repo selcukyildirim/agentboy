@@ -1,3 +1,5 @@
+use hardening::metrics::Metrics;
+use hardening::health::{HealthChecker, HealthStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
@@ -23,116 +25,94 @@ pub struct MetricsReport {
     pub gauges: HashMap<String, f64>,
 }
 
-fn get_start_time() -> chrono::DateTime<chrono::Utc> {
-    static START_TIME: OnceLock<chrono::DateTime<chrono::Utc>> = OnceLock::new();
-    *START_TIME.get_or_init(chrono::Utc::now)
+fn metrics() -> &'static Mutex<Metrics> {
+    static METRICS: OnceLock<Mutex<Metrics>> = OnceLock::new();
+    METRICS.get_or_init(|| Mutex::new(Metrics::new()))
 }
 
-#[derive(Debug, Clone)]
-struct MetricsState {
-    agent_executions: u64,
-    documents_indexed: u64,
-    cache_hits: u64,
-    cache_misses: u64,
-    active_executions: f64,
-}
-
-fn get_metrics_state() -> &'static Mutex<MetricsState> {
-    static METRICS: OnceLock<Mutex<MetricsState>> = OnceLock::new();
-    METRICS.get_or_init(|| Mutex::new(MetricsState {
-        agent_executions: 0,
-        documents_indexed: 0,
-        cache_hits: 0,
-        cache_misses: 0,
-        active_executions: 0.0,
-    }))
-}
-
-pub fn increment_agent_executions() {
-    if let Ok(mut m) = get_metrics_state().lock() {
-        m.agent_executions += 1;
+pub fn record_agent_execution() {
+    if let Ok(mut m) = metrics().lock() {
+        m.increment_counter("agent_executions", 1);
     }
 }
 
-pub fn increment_documents_indexed() {
-    if let Ok(mut m) = get_metrics_state().lock() {
-        m.documents_indexed += 1;
+pub fn record_document_indexed() {
+    if let Ok(mut m) = metrics().lock() {
+        m.increment_counter("documents_indexed", 1);
     }
 }
 
-pub fn increment_cache_hits() {
-    if let Ok(mut m) = get_metrics_state().lock() {
-        m.cache_hits += 1;
+pub fn record_cache_hit() {
+    if let Ok(mut m) = metrics().lock() {
+        m.increment_counter("cache_hits", 1);
     }
 }
 
-pub fn increment_cache_misses() {
-    if let Ok(mut m) = get_metrics_state().lock() {
-        m.cache_misses += 1;
-    }
-}
-
-pub fn set_active_executions(count: f64) {
-    if let Ok(mut m) = get_metrics_state().lock() {
-        m.active_executions = count;
+pub fn record_cache_miss() {
+    if let Ok(mut m) = metrics().lock() {
+        m.increment_counter("cache_misses", 1);
     }
 }
 
 #[tauri::command]
 pub fn get_health() -> HealthReport {
-    let mut components = HashMap::new();
+    // Delegate to the hardening health checker (single source of truth).
+    let mut checker = HealthChecker::new();
+    checker.add_provider_check("providers");
+    let report = checker.check_health();
 
-    components.insert("database".to_string(), ComponentHealth {
-        name: "database".to_string(),
-        status: "healthy".to_string(),
-        message: Some("SQLite connection OK".to_string()),
-    });
+    let components = report
+        .components
+        .into_iter()
+        .map(|(name, c)| {
+            (
+                name.clone(),
+                ComponentHealth {
+                    name,
+                    status: match c.status {
+                        HealthStatus::Healthy => "healthy",
+                        HealthStatus::Degraded => "degraded",
+                        HealthStatus::Unhealthy => "unhealthy",
+                    }
+                    .to_string(),
+                    message: c.message,
+                },
+            )
+        })
+        .collect();
 
-    components.insert("cache".to_string(), ComponentHealth {
-        name: "cache".to_string(),
-        status: "healthy".to_string(),
-        message: Some("Moka cache OK".to_string()),
-    });
-
-    components.insert("providers".to_string(), ComponentHealth {
-        name: "providers".to_string(),
-        status: "healthy".to_string(),
-        message: Some("Provider gateway ready".to_string()),
-    });
-
-    let uptime = (chrono::Utc::now() - get_start_time()).num_seconds() as u64;
+    let status = match report.status {
+        HealthStatus::Healthy => "healthy",
+        HealthStatus::Degraded => "degraded",
+        HealthStatus::Unhealthy => "unhealthy",
+    };
 
     HealthReport {
-        status: "healthy".to_string(),
+        status: status.to_string(),
         components,
-        uptime_seconds: uptime,
+        uptime_seconds: report.uptime_seconds,
         version: env!("CARGO_PKG_VERSION").to_string(),
     }
 }
 
 #[tauri::command]
 pub fn get_metrics() -> MetricsReport {
-    let state = get_metrics_state().lock().unwrap().clone();
+    let m = metrics().lock().unwrap();
+
+    let hits = m.get_counter("cache_hits");
+    let misses = m.get_counter("cache_misses");
+    let total = hits + misses;
+    let hit_rate = if total > 0 { hits as f64 / total as f64 } else { 0.0 };
 
     let mut counters = HashMap::new();
-    counters.insert("agent_executions".to_string(), state.agent_executions);
-    counters.insert("documents_indexed".to_string(), state.documents_indexed);
-    counters.insert("cache_hits".to_string(), state.cache_hits);
-    counters.insert("cache_misses".to_string(), state.cache_misses);
-
-    let total = state.cache_hits + state.cache_misses;
-    let hit_rate = if total > 0 {
-        state.cache_hits as f64 / total as f64
-    } else {
-        0.0
-    };
+    counters.insert("agent_executions".to_string(), m.get_counter("agent_executions"));
+    counters.insert("documents_indexed".to_string(), m.get_counter("documents_indexed"));
+    counters.insert("cache_hits".to_string(), hits);
+    counters.insert("cache_misses".to_string(), misses);
 
     let mut gauges = HashMap::new();
     gauges.insert("cache_hit_rate".to_string(), hit_rate);
-    gauges.insert("active_executions".to_string(), state.active_executions);
+    gauges.insert("active_executions".to_string(), m.get_gauge("active_executions"));
 
-    MetricsReport {
-        counters,
-        gauges,
-    }
+    MetricsReport { counters, gauges }
 }

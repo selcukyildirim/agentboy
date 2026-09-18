@@ -3,9 +3,12 @@ use agent_runtime::context::{
     LlmCompletionRequest, LlmCompletionResponse, LlmProvider, LlmUsage,
 };
 use async_trait::async_trait;
+use cache_core::llm_cache::{CachedLlmResult, LlmResultCache};
 use llm_gateway::gateway::LlmProvider as GatewayProvider;
 use llm_gateway::types::{CompletionRequest, Message, Role};
 use std::sync::Arc;
+
+use crate::resilience;
 
 pub struct GatewayProviderBridge {
     inner: Arc<dyn GatewayProvider>,
@@ -24,15 +27,6 @@ fn convert_role(role: &str) -> Role {
         "assistant" => Role::Assistant,
         "tool" => Role::Tool,
         _ => Role::User,
-    }
-}
-
-fn _convert_role_back(role: &Role) -> String {
-    match role {
-        Role::System => "system".to_string(),
-        Role::User => "user".to_string(),
-        Role::Assistant => "assistant".to_string(),
-        Role::Tool => "tool".to_string(),
     }
 }
 
@@ -56,16 +50,81 @@ impl LlmProvider for GatewayProviderBridge {
             })
             .collect();
 
+        let model = request.model.clone().unwrap_or_else(|| self.model.clone());
+        let temperature = request.temperature.map(|t| t as f32);
+
         let gw_request = CompletionRequest {
-            model: request.model.unwrap_or_else(|| self.model.clone()),
+            model: model.clone(),
             messages: gw_messages,
-            temperature: request.temperature.map(|t| t as f32),
+            temperature,
             max_tokens: request.max_tokens,
             tools: None,
             response_format: None,
         };
 
-        let gw_response = self.inner.complete(gw_request).await?;
+        let provider = self.inner.id().to_string();
+
+        // Deterministic-only caching (temperature 0, no tools) via cache-core.
+        let cacheable = LlmResultCache::is_cacheable(temperature.unwrap_or(0.0), false);
+        let cache_key = if cacheable {
+            let system = request
+                .messages
+                .iter()
+                .find(|m| m.role == "system")
+                .map(|m| m.content.as_str())
+                .unwrap_or("");
+            let user = request
+                .messages
+                .iter()
+                .find(|m| m.role == "user")
+                .map(|m| m.content.as_str())
+                .unwrap_or("");
+            let prompt_hash = LlmResultCache::prompt_hash(system, user);
+            Some(
+                LlmResultCache::new().cache_key(
+                    &provider,
+                    &model,
+                    "v1",
+                    &prompt_hash,
+                    temperature.unwrap_or(0.0),
+                ),
+            )
+        } else {
+            None
+        };
+
+        if let Some(key) = &cache_key {
+            if let Some(hit) = resilience::cache_get(key).await {
+                tracing::debug!(provider = %provider, "LLM cache hit");
+                return Ok(LlmCompletionResponse {
+                    content: hit.response,
+                    model: hit.model,
+                    usage: None,
+                });
+            }
+        }
+
+        let inner = self.inner.clone();
+        let gw_response = resilience::call_with_resilience(&provider, || {
+            let inner = inner.clone();
+            let req = gw_request.clone();
+            async move { inner.complete(req).await }
+        })
+        .await?;
+
+        if let (Some(key), true) = (cache_key, cacheable) {
+            resilience::cache_put(
+                key,
+                CachedLlmResult {
+                    provider: provider.clone(),
+                    model: gw_response.model.clone(),
+                    prompt_hash: String::new(),
+                    response: gw_response.content.clone(),
+                    cached_at: chrono::Utc::now().to_rfc3339(),
+                },
+            )
+            .await;
+        }
 
         let usage = Some(LlmUsage {
             prompt_tokens: gw_response.usage.input_tokens,

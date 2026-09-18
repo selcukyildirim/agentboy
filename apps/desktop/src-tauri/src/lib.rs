@@ -3,6 +3,7 @@ mod commands;
 mod cost;
 mod llm_factory;
 mod provider_bridge;
+mod resilience;
 
 pub use app_state::AppState;
 

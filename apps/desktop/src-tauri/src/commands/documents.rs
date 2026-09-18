@@ -79,6 +79,7 @@ pub fn upload_document(name: String, content: Vec<u8>, content_type: String) -> 
     };
 
     get_documents().lock().unwrap().push(doc.clone());
+    crate::commands::health::record_document_indexed();
 
     tracing::info!(
         doc_id = %doc_id,

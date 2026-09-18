@@ -1,6 +1,22 @@
+use agent_common::error::AppResult;
+use agent_runtime::context::{AgentConfig, DefaultAgentContext};
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
+use tokio::sync::RwLock;
+use workflow_engine::runner::{StepExecutor, WorkflowRunner};
+use workflow_engine::workflow::{Trigger, Workflow, WorkflowStep};
+
+use crate::app_state::AppState;
+use crate::commands::agents::{resolve_provider_spec, DynLlmProvider};
+use crate::llm_factory;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct WorkflowStepInfo {
+    pub agent_id: String,
+    pub name: String,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct WorkflowInfo {
@@ -10,14 +26,26 @@ pub struct WorkflowInfo {
     pub version: u32,
     pub step_count: usize,
     pub created_at: String,
-    pub steps: Vec<WorkflowStep>,
+    pub steps: Vec<WorkflowStepInfo>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct WorkflowStep {
-    pub agent_id: String,
-    pub name: String,
-    pub input_mapping: Option<serde_json::Value>,
+fn to_info(wf: &Workflow) -> WorkflowInfo {
+    WorkflowInfo {
+        id: wf.id.clone(),
+        name: wf.name.clone(),
+        description: wf.description.clone(),
+        version: wf.version,
+        step_count: wf.steps.len(),
+        created_at: wf.created_at.clone(),
+        steps: wf
+            .steps
+            .iter()
+            .map(|s| WorkflowStepInfo {
+                agent_id: s.skill_id.clone(),
+                name: s.name.clone(),
+            })
+            .collect(),
+    }
 }
 
 fn storage_path() -> PathBuf {
@@ -33,55 +61,44 @@ fn storage_path() -> PathBuf {
     base.join(".agentboy").join("workflows.json")
 }
 
-fn load_from_disk() -> Vec<WorkflowInfo> {
-    let path = storage_path();
-    match std::fs::read_to_string(&path) {
-        Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
-        Err(_) => Vec::new(),
-    }
+fn load_from_disk() -> Vec<Workflow> {
+    std::fs::read_to_string(storage_path())
+        .ok()
+        .and_then(|c| serde_json::from_str(&c).ok())
+        .unwrap_or_default()
 }
 
-fn save_to_disk(workflows: &[WorkflowInfo]) -> Result<(), String> {
+fn save_to_disk(workflows: &[Workflow]) -> Result<(), String> {
     let path = storage_path();
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create workflow dir: {}", e))?;
+        std::fs::create_dir_all(parent).map_err(|e| format!("create dir: {e}"))?;
     }
-    let json = serde_json::to_string_pretty(workflows)
-        .map_err(|e| format!("Failed to serialize workflows: {}", e))?;
-    std::fs::write(&path, json).map_err(|e| format!("Failed to write workflows: {}", e))?;
+    let json = serde_json::to_string_pretty(workflows).map_err(|e| format!("serialize: {e}"))?;
+    std::fs::write(&path, json).map_err(|e| format!("write: {e}"))?;
     Ok(())
 }
 
-fn get_workflows() -> &'static Mutex<Vec<WorkflowInfo>> {
-    static WORKFLOWS: OnceLock<Mutex<Vec<WorkflowInfo>>> = OnceLock::new();
-    WORKFLOWS.get_or_init(|| Mutex::new(load_from_disk()))
+fn store() -> &'static Mutex<Vec<Workflow>> {
+    static W: OnceLock<Mutex<Vec<Workflow>>> = OnceLock::new();
+    W.get_or_init(|| Mutex::new(load_from_disk()))
 }
 
 #[tauri::command]
 pub fn list_workflows() -> Vec<WorkflowInfo> {
-    get_workflows().lock().unwrap().clone()
+    store().lock().unwrap().iter().map(to_info).collect()
 }
 
 #[tauri::command]
 pub fn create_workflow(name: String, description: String) -> Result<WorkflowInfo, String> {
-    let workflow = WorkflowInfo {
-        id: format!("wf-{}", &uuid::Uuid::new_v4().to_string()[..8]),
-        name,
-        description,
-        version: 1,
-        step_count: 0,
-        created_at: chrono::Utc::now().to_rfc3339(),
-        steps: Vec::new(),
-    };
+    let mut wf = Workflow::new(&format!("wf-{}", &uuid::Uuid::new_v4().to_string()[..8]), &name);
+    wf.description = description;
+    wf.trigger = Trigger::Manual;
 
-    let mut workflows = get_workflows().lock().unwrap();
-    workflows.push(workflow.clone());
+    let mut workflows = store().lock().unwrap();
+    workflows.push(wf.clone());
     save_to_disk(&workflows)?;
-
-    tracing::info!(workflow_id = %workflow.id, "Workflow created and persisted");
-
-    Ok(workflow)
+    tracing::info!(workflow_id = %wf.id, "Workflow created");
+    Ok(to_info(&wf))
 }
 
 #[tauri::command]
@@ -90,43 +107,100 @@ pub fn add_workflow_step(
     agent_id: String,
     name: String,
 ) -> Result<WorkflowInfo, String> {
-    let mut workflows = get_workflows().lock().unwrap();
-    let workflow = workflows
+    let mut workflows = store().lock().unwrap();
+    let wf = workflows
         .iter_mut()
         .find(|w| w.id == workflow_id)
-        .ok_or_else(|| format!("Workflow {} not found", workflow_id))?;
+        .ok_or_else(|| format!("Workflow {workflow_id} not found"))?;
 
-    workflow.steps.push(WorkflowStep {
-        agent_id,
+    let step_id = format!("step-{}", wf.steps.len() + 1);
+    wf.steps.push(WorkflowStep {
+        id: step_id,
+        skill_id: agent_id,
         name,
         input_mapping: None,
+        output_mapping: None,
+        depends_on: vec![],
+        timeout_seconds: None,
+        retry_count: None,
+        rollback: None,
     });
-    workflow.step_count = workflow.steps.len();
-    let updated = workflow.clone();
+    wf.updated_at = chrono::Utc::now().to_rfc3339();
+    let updated = wf.clone();
     save_to_disk(&workflows)?;
-    Ok(updated)
+    Ok(to_info(&updated))
 }
 
 #[tauri::command]
 pub fn delete_workflow(workflow_id: String) -> Result<(), String> {
-    let mut workflows = get_workflows().lock().unwrap();
+    let mut workflows = store().lock().unwrap();
     workflows.retain(|w| w.id != workflow_id);
     save_to_disk(&workflows)
 }
 
+/// Runs each workflow step's agent through the orchestrator.
+struct DesktopStepExecutor {
+    registry: Arc<RwLock<agent_runtime::registry::AgentRegistry>>,
+    orchestrator: Arc<orchestrator::Orchestrator>,
+    skills: Arc<skill_sdk::SkillRegistry>,
+}
+
+#[async_trait]
+impl StepExecutor for DesktopStepExecutor {
+    async fn execute_step(
+        &self,
+        skill_id: &str,
+        input: serde_json::Value,
+    ) -> AppResult<serde_json::Value> {
+        let offline = std::env::var("AGENTBOY_OFFLINE").is_ok();
+        let registry = self.registry.read().await;
+        let agent = registry
+            .get(skill_id)
+            .ok_or_else(|| agent_common::error::AppError::NotFound(format!("Agent {skill_id}")))?;
+
+        let manifest = agent.manifest();
+        let mut config = AgentConfig::default();
+        config.offline = offline;
+
+        let outcome = if manifest.permissions.network_llm && !offline {
+            let spec = resolve_provider_spec().await.map_err(|e| {
+                agent_common::error::AppError::Provider {
+                    provider: "none".into(),
+                    message: e.message,
+                }
+            })?;
+            let provider = llm_factory::build(&spec)?;
+            let ctx = DefaultAgentContext::new(Box::new(DynLlmProvider(provider)), config);
+            self.orchestrator
+                .execute(&self.skills, agent, input, Some(&ctx), None)
+                .await
+                .map(|(_, out)| out)
+        } else {
+            self.orchestrator
+                .execute(&self.skills, agent, input, None, None)
+                .await
+                .map(|(_, out)| out)
+        };
+        outcome
+    }
+}
+
 #[tauri::command]
 pub async fn execute_workflow(
+    state: tauri::State<'_, AppState>,
     workflow_id: String,
     input: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
     tracing::info!(workflow_id = %workflow_id, "Executing workflow from UI");
 
     let workflow = {
-        let workflows = get_workflows().lock().unwrap();
-        workflows.iter().find(|w| w.id == workflow_id).cloned()
-    };
-
-    let workflow = workflow.ok_or_else(|| format!("Workflow {} not found", workflow_id))?;
+        let workflows = store().lock().unwrap();
+        workflows
+            .iter()
+            .find(|w| w.id == workflow_id)
+            .cloned()
+    }
+    .ok_or_else(|| format!("Workflow {workflow_id} not found"))?;
 
     if workflow.steps.is_empty() {
         return Ok(serde_json::json!({
@@ -134,31 +208,20 @@ pub async fn execute_workflow(
             "workflow_id": workflow_id,
             "status": "completed",
             "steps_completed": 0,
-            "message": "Workflow has no steps"
         }));
     }
 
-    let mut steps_completed = 0u32;
-    let start = std::time::Instant::now();
+    let executor = DesktopStepExecutor {
+        registry: state.registry.clone(),
+        orchestrator: state.orchestrator.clone(),
+        skills: state.skills.clone(),
+    };
 
-    for step in &workflow.steps {
-        tracing::info!(
-            workflow_id = %workflow_id,
-            agent_id = %step.agent_id,
-            step = step.name,
-            "Executing workflow step"
-        );
-        steps_completed += 1;
-    }
+    let runner = WorkflowRunner::new();
+    let execution = runner
+        .run_with(&executor, &workflow, input)
+        .await
+        .map_err(|e| e.to_string())?;
 
-    let duration_ms = start.elapsed().as_millis() as u64;
-    let _ = input;
-
-    Ok(serde_json::json!({
-        "execution_id": uuid::Uuid::new_v4().to_string(),
-        "workflow_id": workflow_id,
-        "status": "completed",
-        "steps_completed": steps_completed,
-        "duration_ms": duration_ms
-    }))
+    serde_json::to_value(&execution).map_err(|e| e.to_string())
 }

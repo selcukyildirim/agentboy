@@ -1,7 +1,33 @@
 use crate::workflow::{Workflow, WorkflowStep};
 use agent_common::error::{AppError, AppResult};
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+/// Executes a single workflow step. Implemented by the host (e.g. the desktop
+/// runs agents, the skill registry runs skills).
+#[async_trait]
+pub trait StepExecutor: Send + Sync {
+    async fn execute_step(
+        &self,
+        skill_id: &str,
+        input: serde_json::Value,
+    ) -> AppResult<serde_json::Value>;
+}
+
+/// Default executor used by `run`; returns a placeholder result.
+struct StubExecutor;
+
+#[async_trait]
+impl StepExecutor for StubExecutor {
+    async fn execute_step(
+        &self,
+        skill_id: &str,
+        _input: serde_json::Value,
+    ) -> AppResult<serde_json::Value> {
+        Ok(serde_json::json!({ "skill": skill_id, "status": "stub" }))
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkflowExecution {
@@ -63,20 +89,30 @@ impl WorkflowRunner {
         workflow: &Workflow,
         input: serde_json::Value,
     ) -> AppResult<WorkflowExecution> {
+        self.run_with(&StubExecutor, workflow, input).await
+    }
+
+    /// Run a workflow with a real step executor.
+    pub async fn run_with(
+        &self,
+        executor: &dyn StepExecutor,
+        workflow: &Workflow,
+        input: serde_json::Value,
+    ) -> AppResult<WorkflowExecution> {
         let params = self.extract_params(workflow, &input)?;
         let mut execution = self.create_execution(workflow, &input);
 
         let mut prev_outputs: HashMap<String, serde_json::Value> = HashMap::new();
 
         for step in &workflow.steps {
-            let step_result = self.execute_step(step, &params, &mut prev_outputs).await;
+            let step_result = self.execute_step(executor, step, &params, &mut prev_outputs).await;
             execution.step_results.push(step_result.clone());
 
             match step_result.status {
                 StepStatus::Failed => {
                     execution.status = ExecutionStatus::Failed;
                     execution.error = step_result.error.clone();
-                    self.perform_rollback(workflow, &execution.step_results, &mut prev_outputs).await;
+                    self.perform_rollback(executor, workflow, &execution.step_results, &mut prev_outputs).await;
                     break;
                 }
                 StepStatus::Completed => {
@@ -133,6 +169,7 @@ impl WorkflowRunner {
 
     async fn execute_step(
         &self,
+        executor: &dyn StepExecutor,
         step: &WorkflowStep,
         params: &HashMap<String, serde_json::Value>,
         prev_outputs: &HashMap<String, serde_json::Value>,
@@ -152,7 +189,7 @@ impl WorkflowRunner {
         let input = self.resolve_input(step, params, prev_outputs);
         result.input = input.clone();
 
-        match self.execute_skill(&step.skill_id, &input).await {
+        match executor.execute_step(&step.skill_id, input).await {
             Ok(output) => {
                 result.status = StepStatus::Completed;
                 result.output = Some(output);
@@ -194,17 +231,9 @@ impl WorkflowRunner {
         }
     }
 
-    async fn execute_skill(&self, skill_id: &str, input: &serde_json::Value) -> AppResult<serde_json::Value> {
-        tracing::info!(skill_id = %skill_id, "Executing skill");
-        Ok(serde_json::json!({
-            "skill": skill_id,
-            "status": "completed",
-            "input_received": input
-        }))
-    }
-
     async fn perform_rollback(
         &self,
+        executor: &dyn StepExecutor,
         workflow: &Workflow,
         step_results: &[StepResult],
         prev_outputs: &mut HashMap<String, serde_json::Value>,
@@ -214,6 +243,22 @@ impl WorkflowRunner {
                 if let Some(step) = workflow.steps.iter().find(|s| s.id == step_result.step_id) {
                     if let Some(ref rollback) = step.rollback {
                         tracing::info!(step_id = %step.id, "Performing rollback");
+                        let input = self.resolve_input(
+                            &WorkflowStep {
+                                id: step.id.clone(),
+                                skill_id: rollback.skill_id.clone(),
+                                name: step.name.clone(),
+                                input_mapping: rollback.input_mapping.clone(),
+                                output_mapping: None,
+                                depends_on: vec![],
+                                timeout_seconds: None,
+                                retry_count: None,
+                                rollback: None,
+                            },
+                            &HashMap::new(),
+                            prev_outputs,
+                        );
+                        let _ = executor.execute_step(&rollback.skill_id, input).await;
                     }
                 }
             }
@@ -285,5 +330,43 @@ mod tests {
         let result = runner.run(&wf, input).await;
 
         assert!(result.is_err());
+    }
+
+    struct RecordingExecutor(std::sync::Mutex<Vec<String>>);
+
+    #[async_trait]
+    impl StepExecutor for RecordingExecutor {
+        async fn execute_step(
+            &self,
+            skill_id: &str,
+            _input: serde_json::Value,
+        ) -> AppResult<serde_json::Value> {
+            self.0.lock().unwrap().push(skill_id.to_string());
+            Ok(serde_json::json!({ "ok": skill_id }))
+        }
+    }
+
+    #[tokio::test]
+    async fn test_run_with_custom_executor() {
+        let mut wf = Workflow::new("wf2", "Custom");
+        wf.add_step(WorkflowStep {
+            id: "s1".into(),
+            skill_id: "paid.margin-guardian".into(),
+            name: "Margin".into(),
+            input_mapping: None,
+            output_mapping: None,
+            depends_on: vec![],
+            timeout_seconds: None,
+            retry_count: None,
+            rollback: None,
+        });
+        let executor = RecordingExecutor(std::sync::Mutex::new(Vec::new()));
+        let runner = WorkflowRunner::new();
+        let execution = runner
+            .run_with(&executor, &wf, serde_json::json!({}))
+            .await
+            .unwrap();
+        assert_eq!(execution.status, ExecutionStatus::Completed);
+        assert_eq!(executor.0.lock().unwrap()[0], "paid.margin-guardian");
     }
 }

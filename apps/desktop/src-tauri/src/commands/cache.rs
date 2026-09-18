@@ -39,5 +39,6 @@ pub fn get_cache_stats() -> CacheStats {
 #[tauri::command]
 pub fn clear_cache() -> Result<String, String> {
     *get_stats().lock().unwrap() = CacheStats::default();
+    crate::resilience::cache_clear();
     Ok("Cache cleared successfully".to_string())
 }

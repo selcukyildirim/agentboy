@@ -59,7 +59,7 @@ pub async fn get_agent_manifest(
         .ok_or_else(|| ApiError::new(ErrorCode::NOT_FOUND, format!("Agent {agent_id} not found")))
 }
 
-async fn resolve_provider_spec() -> Result<ProviderSpec, ApiError> {
+pub(crate) async fn resolve_provider_spec() -> Result<ProviderSpec, ApiError> {
     let (provider, base_url, model) = providers::active_provider_meta().ok_or_else(|| {
         ApiError::new(
             ErrorCode::PROVIDER_UNAVAILABLE,
@@ -191,6 +191,7 @@ pub async fn execute_agent(
         steps: steps.clone(),
     };
     executions::append_execution(execution);
+    crate::commands::health::record_agent_execution();
 
     match outcome {
         Ok(output) => Ok(serde_json::json!({
@@ -235,7 +236,7 @@ impl LlmProvider for NoOpLlmProvider {
     }
 }
 
-struct DynLlmProvider(Arc<dyn LlmProvider>);
+pub(crate) struct DynLlmProvider(pub(crate) Arc<dyn LlmProvider>);
 
 #[async_trait::async_trait]
 impl LlmProvider for DynLlmProvider {
