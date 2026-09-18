@@ -363,7 +363,7 @@ mod tests {
             skill_id: &str,
             _input: serde_json::Value,
         ) -> AppResult<serde_json::Value> {
-            self.0.lock().unwrap().push(skill_id.to_string());
+            agent_common::sync::lock(&self.0).push(skill_id.to_string());
             Ok(serde_json::json!({ "ok": skill_id }))
         }
     }
@@ -389,6 +389,9 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(execution.status, ExecutionStatus::Completed);
-        assert_eq!(executor.0.lock().unwrap()[0], "paid.margin-guardian");
+        assert_eq!(
+            agent_common::sync::lock(&executor.0)[0],
+            "paid.margin-guardian"
+        );
     }
 }

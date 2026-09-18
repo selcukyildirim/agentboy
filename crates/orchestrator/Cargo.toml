@@ -11,6 +11,7 @@ audit-core.workspace = true
 skill-sdk.workspace = true
 tool-runtime.workspace = true
 document-parser.workspace = true
+rag-core.workspace = true
 llm-gateway.workspace = true
 tokio.workspace = true
 tracing.workspace = true

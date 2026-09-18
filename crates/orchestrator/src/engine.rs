@@ -162,6 +162,18 @@ impl Orchestrator {
             )));
         }
 
+        // Prompt-injection defense on untrusted input before it reaches prompts.
+        let mut input = input;
+        let defense = rag_core::injection::InjectionDefense::new();
+        let flagged = crate::injection::sanitize_untrusted_input(&defense, &mut input);
+        if flagged > 0 {
+            tracing::warn!(
+                agent_id = %manifest.id,
+                fields = flagged,
+                "prompt-injection flagged in input; sanitized"
+            );
+        }
+
         let execution_id = self
             .start_execution(
                 &manifest.id,

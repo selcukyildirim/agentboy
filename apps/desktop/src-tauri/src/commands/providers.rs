@@ -39,8 +39,8 @@ fn get_active() -> &'static Mutex<Option<String>> {
 
 /// The currently selected provider plus its base_url and model.
 pub fn active_provider_meta() -> Option<(String, Option<String>, Option<String>)> {
-    let active = get_active().lock().unwrap().clone();
-    let meta = get_meta().lock().unwrap();
+    let active = agent_common::sync::lock(&get_active()).clone();
+    let meta = agent_common::sync::lock(&get_meta());
 
     let provider = match active {
         Some(p) if meta.contains_key(&p) => p,
@@ -51,18 +51,55 @@ pub fn active_provider_meta() -> Option<(String, Option<String>, Option<String>)
     Some((provider, m.base_url.clone(), m.model.clone()))
 }
 
+#[derive(Clone)]
+struct CachedSpec {
+    provider: String,
+    base_url: Option<String>,
+    model: Option<String>,
+    api_key: Option<String>,
+}
+
+fn spec_cache() -> &'static Mutex<Option<CachedSpec>> {
+    static C: OnceLock<Mutex<Option<CachedSpec>>> = OnceLock::new();
+    C.get_or_init(|| Mutex::new(None))
+}
+
+/// The active provider spec with its secret, resolved once per session.
+pub async fn active_spec_cached() -> Option<(String, Option<String>, Option<String>, Option<String>)>
+{
+    if let Some(spec) = agent_common::sync::lock(&spec_cache()).clone() {
+        return Some((spec.provider, spec.base_url, spec.model, spec.api_key));
+    }
+
+    let (provider, base_url, model) = active_provider_meta()?;
+    let api_key = read_secret(&provider).await;
+    let spec = CachedSpec {
+        provider: provider.clone(),
+        base_url: base_url.clone(),
+        model: model.clone(),
+        api_key: api_key.clone(),
+    };
+    *agent_common::sync::lock(&spec_cache()) = Some(spec);
+    Some((provider, base_url, model, api_key))
+}
+
+pub fn invalidate_spec_cache() {
+    *agent_common::sync::lock(&spec_cache()) = None;
+}
+
 #[tauri::command]
 pub fn set_active_provider(provider: String) -> Result<(), String> {
-    if !get_meta().lock().unwrap().contains_key(&provider) {
+    if !agent_common::sync::lock(&get_meta()).contains_key(&provider) {
         return Err(format!("Provider {provider} is not configured"));
     }
-    *get_active().lock().unwrap() = Some(provider);
+    *agent_common::sync::lock(&get_active()) = Some(provider);
+    invalidate_spec_cache();
     Ok(())
 }
 
 #[tauri::command]
 pub fn get_active_provider() -> Option<String> {
-    get_active().lock().unwrap().clone()
+    agent_common::sync::lock(&get_active()).clone()
 }
 
 fn secret_ref(provider: &str) -> String {
@@ -111,14 +148,15 @@ pub async fn configure_provider(config: ProviderConfig) -> Result<ProviderStatus
         store_secret(&provider, key).await?;
     }
 
-    get_meta().lock().unwrap().insert(
+    agent_common::sync::lock(&get_meta()).insert(
         provider.clone(),
         ProviderMeta {
             base_url: base_url.clone(),
             model: model.clone(),
         },
     );
-    *get_active().lock().unwrap() = Some(provider.clone());
+    *agent_common::sync::lock(&get_active()) = Some(provider.clone());
+    invalidate_spec_cache();
 
     tracing::info!(provider = %provider, "Provider configured (secret stored in keychain)");
 
@@ -133,14 +171,15 @@ pub async fn configure_provider(config: ProviderConfig) -> Result<ProviderStatus
 #[tauri::command]
 pub async fn remove_provider_credential(provider: String) -> Result<(), String> {
     delete_secret(&provider).await?;
-    get_meta().lock().unwrap().remove(&provider);
+    agent_common::sync::lock(&get_meta()).remove(&provider);
+    invalidate_spec_cache();
     tracing::info!(provider = %provider, "Provider credential removed");
     Ok(())
 }
 
 #[tauri::command]
 pub async fn get_provider_status() -> Vec<ProviderStatus> {
-    let meta = get_meta().lock().unwrap().clone();
+    let meta = agent_common::sync::lock(&get_meta()).clone();
     meta.into_iter()
         .map(|(provider, m)| ProviderStatus {
             provider,

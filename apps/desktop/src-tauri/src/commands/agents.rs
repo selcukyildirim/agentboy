@@ -60,13 +60,13 @@ pub async fn get_agent_manifest(
 }
 
 pub(crate) async fn resolve_provider_spec() -> Result<ProviderSpec, ApiError> {
-    let (provider, base_url, model) = providers::active_provider_meta().ok_or_else(|| {
-        ApiError::new(
-            ErrorCode::PROVIDER_UNAVAILABLE,
-            "No AI provider configured. Add one in Settings → Providers.",
-        )
-    })?;
-    let api_key = providers::read_secret(&provider).await;
+    let (provider, base_url, model, api_key) =
+        providers::active_spec_cached().await.ok_or_else(|| {
+            ApiError::new(
+                ErrorCode::PROVIDER_UNAVAILABLE,
+                "No AI provider configured. Add one in Settings → Providers.",
+            )
+        })?;
     let model = model.unwrap_or_else(|| ProviderSpec::default_model_for(&provider));
     Ok(ProviderSpec {
         provider,
@@ -86,6 +86,17 @@ pub async fn execute_agent(
     tracing::info!(agent_id = %agent_id, "Executing agent from UI");
 
     let offline = offline.unwrap_or(false);
+
+    // Reject oversized inputs (DoS guard).
+    const MAX_INPUT_BYTES: usize = 10 * 1024 * 1024;
+    let input_size = serde_json::to_string(&input).map(|s| s.len()).unwrap_or(0);
+    if input_size > MAX_INPUT_BYTES {
+        return Err(ApiError::new(
+            ErrorCode::VALIDATION_ERROR,
+            format!("Agent input too large: {input_size} bytes (limit {MAX_INPUT_BYTES})"),
+        ));
+    }
+
     let started_at = chrono::Utc::now();
     let start = std::time::Instant::now();
 

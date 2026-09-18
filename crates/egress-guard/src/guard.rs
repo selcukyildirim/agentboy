@@ -42,9 +42,7 @@ impl EgressGuard {
     }
 
     pub fn classify_content(&self, content: &str) -> DataClassification {
-        let has_pii = self.classifier.detect_pii(content).is_some();
-        let has_secrets = self.classifier.detect_secrets(content).is_some();
-        self.classifier.classify(content, has_secrets, has_pii)
+        self.classifier.classify(content)
     }
 
     pub fn check_and_sanitize(

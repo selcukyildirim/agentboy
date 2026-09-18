@@ -130,12 +130,25 @@ pub async fn list_documents() -> Result<Vec<DocumentInfo>, String> {
     Ok(store().lock().await.documents.clone())
 }
 
+/// Maximum accepted document size (25 MB).
+const MAX_DOCUMENT_BYTES: usize = 25 * 1024 * 1024;
+/// Maximum number of indexed documents.
+const MAX_DOCUMENTS: usize = 5000;
+
 #[tauri::command]
 pub async fn upload_document(
     name: String,
     content: Vec<u8>,
     content_type: String,
 ) -> Result<DocumentInfo, String> {
+    if content.len() > MAX_DOCUMENT_BYTES {
+        return Err(format!(
+            "Document too large: {} bytes (limit {} bytes)",
+            content.len(),
+            MAX_DOCUMENT_BYTES
+        ));
+    }
+
     // Real parsing via document-parser (PDF/DOCX/XLSX/CSV/JSON/XML/TXT/MD),
     // memoised through the cache-core parse cache keyed by content hash.
     let parse_cache = ParseCache::new("v1");
@@ -171,6 +184,9 @@ pub async fn upload_document(
     let doc_id = uuid::Uuid::new_v4().to_string();
 
     let mut state = store().lock().await;
+    if state.documents.len() >= MAX_DOCUMENTS {
+        return Err(format!("Document limit reached ({MAX_DOCUMENTS})"));
+    }
     let ingest = state
         .pipeline
         .ingest(&doc_id, &text, &name)

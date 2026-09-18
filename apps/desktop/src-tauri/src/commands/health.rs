@@ -97,7 +97,7 @@ pub fn get_health() -> HealthReport {
 
 #[tauri::command]
 pub fn get_metrics() -> MetricsReport {
-    let m = metrics().lock().unwrap();
+    let m = agent_common::sync::lock(&metrics());
 
     let hits = m.get_counter("cache_hits");
     let misses = m.get_counter("cache_misses");

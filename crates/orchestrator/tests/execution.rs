@@ -34,10 +34,17 @@ async fn orchestrator_executes_agent_and_records_audit_and_steps() {
 
     // The state machine recorded steps.
     let steps = orchestrator.get_steps(execution_id).await.unwrap();
-    assert!(steps.len() >= 2, "expected at least 2 steps, got {}", steps.len());
+    assert!(
+        steps.len() >= 2,
+        "expected at least 2 steps, got {}",
+        steps.len()
+    );
 
     // Audit trail recorded a success event.
-    let events = audit.query("finance.bank-reconciliation", 10).await.unwrap();
+    let events = audit
+        .query("finance.bank-reconciliation", 10)
+        .await
+        .unwrap();
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].result, audit_core::event::AuditResult::Success);
 }

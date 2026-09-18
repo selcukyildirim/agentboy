@@ -34,8 +34,25 @@ pub async fn init_pool() -> AppResult<SqlitePool> {
         .await
         .map_err(|e| AppError::Database(format!("connect db: {e}")))?;
 
+    apply_pragmas(&pool).await;
+
     tracing::info!(path = %path.display(), "Local database ready");
     Ok(pool)
+}
+
+/// Apply SQLite hardening/performance pragmas.
+pub async fn apply_pragmas(pool: &SqlitePool) {
+    for pragma in [
+        "PRAGMA journal_mode=WAL",
+        "PRAGMA foreign_keys=ON",
+        "PRAGMA busy_timeout=5000",
+        "PRAGMA synchronous=NORMAL",
+        "PRAGMA temp_store=MEMORY",
+    ] {
+        if let Err(e) = sqlx::query(pragma).execute(pool).await {
+            tracing::warn!(pragma, error = %e, "pragma failed");
+        }
+    }
 }
 
 /// Create tables owned by the library subsystems (decision memory, workflow

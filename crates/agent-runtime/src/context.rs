@@ -217,15 +217,15 @@ impl AgentContext for DefaultAgentContext {
     }
 
     fn last_egress_manifest(&self) -> Option<EgressManifest> {
-        self.last_egress_manifest.lock().unwrap().clone()
+        agent_common::sync::lock(&self.last_egress_manifest).clone()
     }
 
     fn total_usage(&self) -> LlmUsage {
-        self.total_usage.lock().unwrap().clone()
+        agent_common::sync::lock(&self.total_usage).clone()
     }
 
     fn record_usage(&self, usage: LlmUsage) {
-        *self.total_usage.lock().unwrap() += usage;
+        *agent_common::sync::lock(&self.total_usage) += usage;
     }
 
     fn sanitize_for_egress(
@@ -233,7 +233,7 @@ impl AgentContext for DefaultAgentContext {
         system_prompt: &str,
         user_prompt: &str,
     ) -> AppResult<(String, String)> {
-        let mut guard = self.egress_guard.lock().unwrap();
+        let mut guard = agent_common::sync::lock(&self.egress_guard);
         let provider_id = self.llm.provider_id();
 
         let (sanitized_user, classification) =
@@ -258,7 +258,7 @@ impl AgentContext for DefaultAgentContext {
             "agent-llm-call",
         );
 
-        *self.last_egress_manifest.lock().unwrap() = Some(manifest);
+        *agent_common::sync::lock(&self.last_egress_manifest) = Some(manifest);
 
         Ok((sanitized_system, sanitized_user))
     }

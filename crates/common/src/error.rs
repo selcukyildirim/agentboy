@@ -109,6 +109,36 @@ impl AppError {
             AppError::NotFound(_) => ErrorCode::NOT_FOUND,
         }
     }
+
+    /// A client-safe message. Internal/database/provider/storage details are
+    /// replaced with generic text so internals do not leak to the UI.
+    pub fn user_message(&self) -> String {
+        match self {
+            AppError::UserFacing { message, .. } => message.clone(),
+            AppError::Validation(m) => m.clone(),
+            AppError::Entitlement(m) => m.clone(),
+            AppError::PolicyDenied(m) => m.clone(),
+            AppError::EgressBlocked { reason } => reason.clone(),
+            AppError::ExecutionCancelled { reason } => reason.clone(),
+            AppError::ExecutionLimitExceeded { limit } => {
+                format!("Execution step limit exceeded ({limit})")
+            }
+            AppError::InvalidStateTransition { from, to } => {
+                format!("Invalid state transition: {from} -> {to}")
+            }
+            AppError::NotFound(m) => m.clone(),
+            AppError::ToolPermissionDenied { tool, reason } => {
+                format!("Tool '{tool}' denied: {reason}")
+            }
+            AppError::Provider { provider, .. } => {
+                format!("AI provider '{provider}' request failed")
+            }
+            AppError::Database(_) => "A local storage error occurred".to_string(),
+            AppError::Config(_) | AppError::Internal(_) | AppError::ToolExecutionFailed { .. } => {
+                "An internal error occurred".to_string()
+            }
+        }
+    }
 }
 
 /// Stable, serializable error envelope: `{ "code": "...", "message": "..." }`.
@@ -131,7 +161,7 @@ impl From<AppError> for ApiError {
     fn from(err: AppError) -> Self {
         Self {
             code: err.error_code(),
-            message: err.to_string(),
+            message: err.user_message(),
         }
     }
 }
@@ -223,5 +253,29 @@ mod tests {
         let json = serde_json::to_value(&api).unwrap();
         assert_eq!(json["code"], "NOT_FOUND");
         assert_eq!(json["message"], "missing");
+    }
+
+    #[test]
+    fn test_user_message_hides_internals() {
+        let db: ApiError = AppError::Database("table foo locked at /secret/path".into()).into();
+        assert_eq!(db.code, ErrorCode::DATABASE_ERROR);
+        assert!(!db.message.contains("foo"));
+        assert!(!db.message.contains("/secret/path"));
+
+        let internal: ApiError = AppError::Internal(anyhow::anyhow!("panic detail")).into();
+        assert_eq!(internal.message, "An internal error occurred");
+
+        let provider: ApiError = AppError::Provider {
+            provider: "openai".into(),
+            message: "401 unauthorized token sk-xxx".into(),
+        }
+        .into();
+        assert!(!provider.message.contains("sk-xxx"));
+    }
+
+    #[test]
+    fn test_user_message_keeps_validation() {
+        let err: ApiError = AppError::Validation("Missing 'bank_statement' CSV".into()).into();
+        assert!(err.message.contains("bank_statement"));
     }
 }

@@ -85,7 +85,10 @@ fn store() -> &'static Mutex<Vec<Workflow>> {
 
 #[tauri::command]
 pub fn list_workflows() -> Vec<WorkflowInfo> {
-    store().lock().unwrap().iter().map(to_info).collect()
+    agent_common::sync::lock(&store())
+        .iter()
+        .map(to_info)
+        .collect()
 }
 
 #[tauri::command]
@@ -97,7 +100,7 @@ pub fn create_workflow(name: String, description: String) -> Result<WorkflowInfo
     wf.description = description;
     wf.trigger = Trigger::Manual;
 
-    let mut workflows = store().lock().unwrap();
+    let mut workflows = agent_common::sync::lock(&store());
     workflows.push(wf.clone());
     save_to_disk(&workflows)?;
     tracing::info!(workflow_id = %wf.id, "Workflow created");
@@ -110,7 +113,7 @@ pub fn add_workflow_step(
     agent_id: String,
     name: String,
 ) -> Result<WorkflowInfo, String> {
-    let mut workflows = store().lock().unwrap();
+    let mut workflows = agent_common::sync::lock(&store());
     let wf = workflows
         .iter_mut()
         .find(|w| w.id == workflow_id)
@@ -136,7 +139,7 @@ pub fn add_workflow_step(
 
 #[tauri::command]
 pub fn delete_workflow(workflow_id: String) -> Result<(), String> {
-    let mut workflows = store().lock().unwrap();
+    let mut workflows = agent_common::sync::lock(&store());
     workflows.retain(|w| w.id != workflow_id);
     save_to_disk(&workflows)
 }
@@ -197,7 +200,7 @@ pub async fn execute_workflow(
     tracing::info!(workflow_id = %workflow_id, "Executing workflow from UI");
 
     let workflow = {
-        let workflows = store().lock().unwrap();
+        let workflows = agent_common::sync::lock(&store());
         workflows.iter().find(|w| w.id == workflow_id).cloned()
     }
     .ok_or_else(|| format!("Workflow {workflow_id} not found"))?;

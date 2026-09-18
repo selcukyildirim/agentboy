@@ -15,7 +15,6 @@ pub fn run() {
     let app_state = tauri::async_runtime::block_on(AppState::new());
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             commands::greet,
