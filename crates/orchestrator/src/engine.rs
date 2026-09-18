@@ -41,10 +41,7 @@ impl Orchestrator {
             if let Some(id) = order.pop_front() {
                 let terminal = {
                     let states = self.states.read().await;
-                    states
-                        .get(&id)
-                        .map(|s| s.is_terminal())
-                        .unwrap_or(true)
+                    states.get(&id).map(|s| s.is_terminal()).unwrap_or(true)
                 };
                 if terminal {
                     self.executions.write().await.remove(&id);
