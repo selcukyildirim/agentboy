@@ -1,14 +1,72 @@
 use cache_core::content_hash::content_hash;
+use cache_core::embedding_cache::EmbeddingCache;
 use cache_core::llm_cache::CachedLlmResult;
 use cache_core::parse_cache::ParseCache;
 use document_parser::parser::{extract_text, AutoParser, DocumentParser};
 use rag_core::context_budget::ContextBudget;
-use rag_core::embedding::LocalEmbeddingProvider;
+use rag_core::embedding::{EmbeddingProvider, LocalEmbeddingProvider};
 use rag_core::injection::InjectionDefense;
 use rag_core::pipeline::RagPipeline;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 use tokio::sync::Mutex;
+
+/// Embedding provider that memoises vectors via the cache-core embedding cache.
+struct CachedEmbeddingProvider {
+    inner: LocalEmbeddingProvider,
+}
+
+impl CachedEmbeddingProvider {
+    fn new(dimension: usize) -> Self {
+        Self {
+            inner: LocalEmbeddingProvider::new(dimension),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl EmbeddingProvider for CachedEmbeddingProvider {
+    async fn embed(
+        &self,
+        texts: &[String],
+    ) -> agent_common::error::AppResult<Vec<Vec<f32>>> {
+        let cache = EmbeddingCache::new();
+        let mut out = Vec::with_capacity(texts.len());
+        for text in texts {
+            let hash = content_hash(text.as_bytes());
+            let key = cache.cache_key(&hash, self.inner.model_name(), "v1");
+            if let Some(hit) = crate::resilience::cache_get(&key).await {
+                if let Ok(vector) = serde_json::from_str::<Vec<f32>>(&hit.response) {
+                    out.push(vector);
+                    continue;
+                }
+            }
+            let embedded = self.inner.embed(std::slice::from_ref(text)).await?;
+            let vector = embedded.into_iter().next().unwrap_or_default();
+            crate::resilience::cache_put(
+                key,
+                CachedLlmResult {
+                    provider: "embedding".to_string(),
+                    model: self.inner.model_name().to_string(),
+                    prompt_hash: hash,
+                    response: serde_json::to_string(&vector).unwrap_or_default(),
+                    cached_at: chrono::Utc::now().to_rfc3339(),
+                },
+            )
+            .await;
+            out.push(vector);
+        }
+        Ok(out)
+    }
+
+    fn dimension(&self) -> usize {
+        self.inner.dimension()
+    }
+
+    fn model_name(&self) -> &str {
+        self.inner.model_name()
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DocumentInfo {
@@ -48,7 +106,7 @@ struct KnowledgeState {
 impl KnowledgeState {
     fn new() -> Self {
         Self {
-            pipeline: RagPipeline::new(Box::new(LocalEmbeddingProvider::new(256)))
+            pipeline: RagPipeline::new(Box::new(CachedEmbeddingProvider::new(256)))
                 .with_chunk_size(512, 50)
                 .with_weights(0.6, 0.4),
             documents: Vec::new(),

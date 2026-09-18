@@ -89,6 +89,14 @@ pub async fn execute_agent(
     let started_at = chrono::Utc::now();
     let start = std::time::Instant::now();
 
+    // Crash-recovery checkpoint (hardening): records the in-flight execution.
+    let crash_dir = crate::db::db_path()
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(std::env::temp_dir);
+    let crash = hardening::crash_recovery::CrashRecovery::new(crash_dir);
+    let _ = crash.create_checkpoint(&agent_id, 0, input.clone());
+
     let (outcome, usage, model_name, orch_steps, orch_id) = {
         let registry = state.registry.read().await;
         let agent = registry.get(&agent_id).ok_or_else(|| {
@@ -193,6 +201,7 @@ pub async fn execute_agent(
     if let Err(e) = executions::append_execution(&state.pool, &execution).await {
         tracing::warn!(error = %e, "Failed to persist execution");
     }
+    let _ = crash.clear_state();
     crate::commands::health::record_agent_execution();
 
     match outcome {

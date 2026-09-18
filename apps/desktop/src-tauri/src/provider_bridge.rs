@@ -132,6 +132,14 @@ impl LlmProvider for GatewayProviderBridge {
             total_tokens: gw_response.usage.input_tokens + gw_response.usage.output_tokens,
         });
 
+        // Provider-native prompt cache accounting (cache-core).
+        resilience::record_prompt_cache(
+            &provider,
+            gw_response.usage.cache_read_tokens > 0,
+            gw_response.usage.cache_read_tokens,
+            gw_response.usage.cache_write_tokens,
+        );
+
         Ok(LlmCompletionResponse {
             content: gw_response.content,
             model: gw_response.model,

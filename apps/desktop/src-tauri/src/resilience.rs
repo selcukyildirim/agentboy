@@ -1,5 +1,6 @@
 use agent_common::error::{AppError, AppResult};
 use cache_core::llm_cache::CachedLlmResult;
+use cache_core::memory::MemoryCache;
 use cache_core::metrics::CacheUsageMetrics;
 use cache_core::persistent::PersistentCache;
 use hardening::rate_limit::RateLimiter;
@@ -24,6 +25,11 @@ fn persistent_cache() -> &'static OnceLock<PersistentCache> {
     &C
 }
 
+fn l1_cache() -> &'static MemoryCache<CachedLlmResult> {
+    static L: OnceLock<MemoryCache<CachedLlmResult>> = OnceLock::new();
+    L.get_or_init(|| MemoryCache::new(500, Duration::from_secs(600)))
+}
+
 fn cache_metrics() -> &'static Mutex<CacheUsageMetrics> {
     static M: OnceLock<Mutex<CacheUsageMetrics>> = OnceLock::new();
     M.get_or_init(|| Mutex::new(CacheUsageMetrics::new()))
@@ -35,24 +41,40 @@ pub fn init(pool: SqlitePool) {
 }
 
 pub async fn cache_get(key: &str) -> Option<CachedLlmResult> {
+    // L1 in-memory.
+    if let Some(entry) = l1_cache().get(key).await {
+        let mut m = cache_metrics().lock().unwrap();
+        m.record_llm_hit(0);
+        m.record_l1_hit();
+        return Some(entry);
+    }
+
+    // L2 persistent.
     let cache = persistent_cache().get()?;
     match cache.get(key).await.ok().flatten() {
         Some(value) => {
-            let mut m = cache_metrics().lock().unwrap();
-            m.record_llm_hit(0);
-            m.record_l1_hit();
-            serde_json::from_str(&value).ok()
+            if let Ok(entry) = serde_json::from_str::<CachedLlmResult>(&value) {
+                l1_cache().insert(key.to_string(), entry.clone()).await;
+                let mut m = cache_metrics().lock().unwrap();
+                m.record_llm_hit(0);
+                m.record_l2_hit();
+                Some(entry)
+            } else {
+                None
+            }
         }
         None => {
             let mut m = cache_metrics().lock().unwrap();
             m.record_llm_miss();
             m.record_l1_miss();
+            m.record_l2_miss();
             None
         }
     }
 }
 
 pub async fn cache_put(key: String, value: CachedLlmResult) {
+    l1_cache().insert(key.clone(), value.clone()).await;
     if let Some(cache) = persistent_cache().get() {
         if let Ok(serialized) = serde_json::to_string(&value) {
             let _ = cache.insert(&key, "llm", &serialized, None).await;
@@ -61,6 +83,7 @@ pub async fn cache_put(key: String, value: CachedLlmResult) {
 }
 
 pub async fn cache_clear() {
+    l1_cache().invalidate_all();
     let _ = clear_persistent_cache("llm").await;
 }
 
@@ -80,6 +103,20 @@ pub async fn persistent_entry_count() -> u64 {
 
 pub fn cache_metrics_snapshot() -> CacheUsageMetrics {
     cache_metrics().lock().unwrap().clone()
+}
+
+/// Record provider-native prompt-cache token usage (cache-core prompt cache).
+pub fn record_prompt_cache(provider: &str, cache_hit: bool, read_tokens: u32, write_tokens: u32) {
+    if read_tokens == 0 && write_tokens == 0 {
+        return;
+    }
+    let abstraction = cache_core::prompt_cache::PromptCacheAbstraction::new(
+        cache_core::prompt_cache::PromptCacheMode::Auto,
+    );
+    let normalized = abstraction.normalize_metrics(cache_hit, read_tokens, write_tokens, provider);
+    let mut m = cache_metrics().lock().unwrap();
+    m.record_prompt_cache(normalized.cache_read_tokens, normalized.cache_write_tokens);
+    m.add_cost_saving(normalized.estimated_saving_usd);
 }
 
 fn is_infrastructure_error(err: &AppError) -> bool {

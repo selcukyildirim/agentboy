@@ -30,8 +30,8 @@ pub async fn get_cache_stats() -> Result<CacheStats, String> {
     let entries = crate::resilience::persistent_entry_count().await as usize;
     let m = crate::resilience::cache_metrics_snapshot();
 
-    let hits = m.llm_cache_hits + m.l1_hits;
-    let misses = m.llm_cache_misses + m.l1_misses;
+    let hits = m.llm_cache_hits;
+    let misses = m.llm_cache_misses;
     let total = hits + misses;
     let hit_rate = if total > 0 {
         hits as f64 / total as f64
